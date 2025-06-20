@@ -19,6 +19,18 @@
       }
     ]
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vishnu-rao-k/git-history"
+  },
+  "license": "GPL-3.0-only",
+  "keywords": [
+    "git",
+    "history",
+    "log",
+    "vscode"
+  ],
+  "publisher": "VishnuPrasadRaoK",
   "scripts": {
     "vscode:prepublish": "npm run compile",
     "compile": "tsc -p ./",
