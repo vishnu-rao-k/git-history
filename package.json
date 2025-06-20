@@ -1,6 +1,6 @@
 {
   "name": "git-history",
-  "displayName": "Git History",
+  "displayName": "Git History fast",
   "description": "View and search complete git log",
   "version": "0.0.1",
   "engines": {
