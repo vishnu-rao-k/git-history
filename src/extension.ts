@@ -16,55 +16,71 @@ export function activate(context: vscode.ExtensionContext) {
 	// The commandId parameter must match the command field in package.json
 	const disposable = vscode.commands.registerCommand('git-history.showHistory', async () => {
 		// The code you place here will be executed every time your command is executed
-        // Create and show a new webview panel
-        const panel = vscode.window.createWebviewPanel(
-            'gitGraphSearch',
-            'Git Graph Search',
-            vscode.ViewColumn.One,
-            { enableScripts: true }
-        );
+		// Create and show a new webview panel
+		const panel = vscode.window.createWebviewPanel(
+			'gitGraphSearch',
+			'Git Graph Search',
+			vscode.ViewColumn.One,
+			{ enableScripts: true }
+		);
 
-        // Ensure you have an open workspace to infer the repo path.
-        const workspaceFolders = vscode.workspace.workspaceFolders;
-        if (!workspaceFolders) {
-            vscode.window.showErrorMessage('No workspace open. Please open a Git repository.');
-            return;
-        }
-        const repoPath = workspaceFolders[0].uri.fsPath;
-        const git = simpleGit(repoPath);
+		// Ensure you have an open workspace to infer the repo path.
+		const workspaceFolders = vscode.workspace.workspaceFolders;
+		if (!workspaceFolders || workspaceFolders.length === 0) {
+			vscode.window.showErrorMessage('No workspace open. Please open a Git repository.');
+			return;
+		}
+		let repoPath: string;
+		if (workspaceFolders.length === 1) {
+			repoPath = workspaceFolders[0].uri.fsPath;
+		} else {
+			// Prompt user to select a folder if multiple are open
+			const selected = await vscode.window.showQuickPick(
+				workspaceFolders.map(f => ({ label: f.name, description: f.uri.fsPath })),
+				{
+					placeHolder: 'Select the repository folder to view history',
+				}
+			);
+			if (!selected) {
+				vscode.window.showErrorMessage('No repository folder selected.');
+				return;
+			}
+			repoPath = selected.description;
+		}
+		const git = simpleGit(repoPath);
 
-        // Fetch Git logs (this retrieves a list of commits)
-        let logData;
-        try {
-            logData = await git.log();
-        } catch (error) {
-            vscode.window.showErrorMessage('Failed to retrieve Git logs.');
-            logData = { all: [] };
-        }
+		// Fetch Git logs (this retrieves a list of commits)
+		let logData;
+		try {
+			logData = await git.log();
+		} catch (error) {
+			vscode.window.showErrorMessage('Failed to retrieve Git logs.');
+			logData = { all: [] };
+		}
 
-        // Set the initial webview HTML content including the commit data.
-        panel.webview.html = getWebviewContent(logData);
+		// Set the initial webview HTML content including the commit data.
+		panel.webview.html = getWebviewContent(logData);
 
-        // Listen to messages sent from the webview for search functionality.
-        panel.webview.onDidReceiveMessage(async message => {
-            if (message.command === 'search') {
-                const searchQuery = message.text;
-                const filtered = logData.all.filter(commit =>
-                    commit.author_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                    commit.message.toLowerCase().includes(searchQuery.toLowerCase())
-                );
-                panel.webview.postMessage({ command: 'updateGraph', data: filtered });
-            } else if (message.command === 'showFiles') {
-                // Get files changed in the commit
-                try {
-                    const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
-                    const fileList = files.split('\n').filter(f => f.trim() !== '');
-                    panel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
-                } catch (error) {
-                    panel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
-                }
-            }
-        });
+		// Listen to messages sent from the webview for search functionality.
+		panel.webview.onDidReceiveMessage(async message => {
+			if (message.command === 'search') {
+				const searchQuery = message.text;
+				const filtered = logData.all.filter(commit =>
+					commit.author_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					commit.message.toLowerCase().includes(searchQuery.toLowerCase())
+				);
+				panel.webview.postMessage({ command: 'updateGraph', data: filtered });
+			} else if (message.command === 'showFiles') {
+				// Get files changed in the commit
+				try {
+					const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
+					const fileList = files.split('\n').filter(f => f.trim() !== '');
+					panel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
+				} catch (error) {
+					panel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
+				}
+			}
+		});
 	});
 
 	context.subscriptions.push(disposable);
