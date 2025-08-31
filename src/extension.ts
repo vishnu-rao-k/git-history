@@ -91,8 +91,10 @@ export function activate(context: vscode.ExtensionContext) {
 			: undefined;
 		// Create and show a new webview currentPanel
 		if (currentPanel) {
+			// If we already have a panel, update its content with the latest data.
+			// and show it in the target column
+			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex);
 			currentPanel.reveal(columnToShowIn);
-			return;
 		} else {
 			currentPanel = vscode.window.createWebviewPanel(
 				'gitHistory',
