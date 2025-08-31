@@ -20,26 +20,6 @@ export function activate(context: vscode.ExtensionContext) {
 	const disposable = vscode.commands.registerCommand('git-history.showHistory', async () => {
 		// The code you place here will be executed every time your command is executed
 
-		// Determine the column to show the webview in
-		const columnToShowIn = vscode.window.activeTextEditor
-			? vscode.window.activeTextEditor.viewColumn
-			: undefined;
-		// Create and show a new webview currentPanel
-		if (currentPanel) {
-			currentPanel.reveal(columnToShowIn);
-			return;
-		} else {
-			currentPanel = vscode.window.createWebviewPanel(
-				'gitHistory',
-				'Git history',
-				columnToShowIn || vscode.ViewColumn.One,
-				{ enableScripts: true }
-			);
-			// Temporary placeholder until repo selection is done
-			// currentPanel.webview.html = getWebviewContent({ all: [] }, [], 0);
-
-		};
-
 		// Ensure you have an open workspace to infer the repo path.
 		const workspaceFolders = vscode.workspace.workspaceFolders;
 		if (!workspaceFolders || workspaceFolders.length === 0) {
@@ -68,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
 			name: r.rootUri.fsPath.split(/[\\/]/).pop() || r.rootUri.fsPath,
 			path: r.rootUri.fsPath
 		}));
-		
+
 		let repoIndex = 0;
 		let repoName: string = repoList[0].name;
 		let repoPath: string = repoList[0].path;
@@ -105,8 +85,24 @@ export function activate(context: vscode.ExtensionContext) {
 			logData = { all: [] };
 		}
 
-		// Set the initial webview HTML content including the commit data and repo info.
-		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex);
+		// Determine the column to show the webview in
+		const columnToShowIn = vscode.window.activeTextEditor
+			? vscode.window.activeTextEditor.viewColumn
+			: undefined;
+		// Create and show a new webview currentPanel
+		if (currentPanel) {
+			currentPanel.reveal(columnToShowIn);
+			return;
+		} else {
+			currentPanel = vscode.window.createWebviewPanel(
+				'gitHistory',
+				'Git history',
+				columnToShowIn || vscode.ViewColumn.One,
+				{ enableScripts: true }
+			);
+			// Set the initial webview HTML content including the commit data and repo info.
+			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex);
+		};
 
 		// Listen to messages sent from the webview for search functionality and repo switching.
 		currentPanel.webview.onDidReceiveMessage(async message => {
@@ -174,7 +170,7 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 	<!DOCTYPE html>
 	<html lang="en">
 	<head>
-		<meta charset="UTF-8">
+		<meta charset="UTF-8">	
 		<title>Git history</title>
 		<style>
 			body {

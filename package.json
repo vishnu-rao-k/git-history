@@ -48,9 +48,10 @@
     "eslint": "^9.25.1",
     "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2"
-  },
-  "dependencies": {
+    "@vscode/test-electron": "^2.5.2",
     "simple-git": "^3.28.0"
-  }
+  },
+  "extensionDependencies": [
+    "vscode.git"
+  ]
 }
