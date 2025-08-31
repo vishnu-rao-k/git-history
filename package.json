@@ -2,7 +2,7 @@
   "name": "git-history",
   "displayName": "Git History fast",
   "description": "View and search complete git history of a repository with ease.",
-  "version": "0.0.4",
+  "version": "0.0.5",
   "engines": {
     "vscode": "^1.95.0"
   },
@@ -48,7 +48,9 @@
     "eslint": "^9.25.1",
     "typescript": "^5.8.3",
     "@vscode/test-cli": "^0.0.10",
-    "@vscode/test-electron": "^2.5.2",
+    "@vscode/test-electron": "^2.5.2"
+  },
+  "dependencies": {
     "simple-git": "^3.28.0"
   },
   "extensionDependencies": [

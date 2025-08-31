@@ -1,3 +1,9 @@
+# 0.0.5 August 2025
+
+## Fixed
+
+- Fixed dependency issues.
+
 # 0.0.4 August 2025
 
 ## Added

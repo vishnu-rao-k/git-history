@@ -32,3 +32,7 @@ Initial release of the git history extension.
 
 - Added a new feature to show repository name in the webview panel and to change the repository selection.
 - Improved initialization of the webview.
+
+### 0.0.5
+
+- Fixed dependencies
