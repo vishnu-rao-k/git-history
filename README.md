@@ -4,7 +4,6 @@ A Visual Studio Code extension that helps you easily browse, search, and explore
 
 ## Features
 - **View Full Commit History**: Display the entire commit history of your repository in a searchable, sortable table within Visual Studio Code.
-- **Commit Details**: Click on any commit to view detailed information, including author, date, commit message, and changed files.
 - **Integration with Source Control**: Seamlessly integrates with VS Code’s built-in Git features for a unified workflow.
 - **Responsive UI**: Optimized for performance and usability, even in large repositories.
 
@@ -28,3 +27,8 @@ Initial release of the git history extension.
 ### 0.0.3
 
 - Fixed repository selection in multi-root workspaces, ensuring only valid Git repositories are listed.
+
+### 0.0.4
+
+- Added a new feature to show repository name in the webview panel and to change the repository selection.
+- Improved initialization of the webview.

@@ -1,3 +1,13 @@
+# 0.0.4 August 2025
+
+## Added
+
+- A new feature to show repository name in the webview panel and to change the repository selection.
+
+## Changed
+
+- Changed initialization of the webview to improve performance.
+
 # 0.0.3 August 2025
 
 ## Fixed
