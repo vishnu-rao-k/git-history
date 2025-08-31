@@ -17,13 +17,14 @@ This extension contributes the following settings:
 
 ## Release Notes
 
-Users appreciate release notes as you update your extension.
-
 ### 0.0.1
 
 Initial release of the git history extension.
 
 ### 0.0.2
 
-Added a feature to select git history of a repository if there are mutliple repositories in the workspace.
+- Added a feature to select git history of a repository if there are multiple repositories in the workspace.
 
+### 0.0.3
+
+- Fixed repository selection in multi-root workspaces, ensuring only valid Git repositories are listed.

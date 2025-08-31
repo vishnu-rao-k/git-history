@@ -1,13 +1,22 @@
-# Change Log
+# 0.0.3 August 2025
 
-All notable changes to the "git-history" extension will be documented in this file.
+## Fixed
 
-Check [Keep a Changelog](http://keepachangelog.com/) for recommendations on how to structure this file.
+- Fixed repository selection in multi-root workspaces, ensuring only valid Git repositories are listed.
 
-## [Unreleased]
+# 0.0.2 August 2025
 
-- Option to show diff of a file in a commit.
+## Added
 
-### Added
-- 0.0.1 Initial version of the extension to show git history in a tabular format with an option to view files in a commit.
-- 0.0.2 Option to select a repository in a multiple repository workspace.
+- Added an option to select a repository in a multi-root workspaces.
+
+# 0.0.1 June 2025
+
+## Added
+
+- Initial version of the extension to display Git commit history in a tabular format within a VS Code webview.
+- Added the ability to view the list of files changed in each commit.
+- Enabled viewing commit details, including author, date, and commit message.
+- Implemented responsive, theme-aware UI using VS Code theme variables.
+- All Git operations performed using `simple-git` for reliability and cross-platform support.
+- Supports single-root workspaces for initial release.

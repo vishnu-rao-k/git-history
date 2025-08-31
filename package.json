@@ -1,8 +1,8 @@
 {
   "name": "git-history",
   "displayName": "Git History fast",
-  "description": "View and search complete git log",
-  "version": "0.0.2",
+  "description": "View and search complete git history of a repository with ease.",
+  "version": "0.0.3",
   "engines": {
     "vscode": "^1.95.0"
   },
