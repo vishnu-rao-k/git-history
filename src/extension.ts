@@ -11,18 +11,34 @@ export function activate(context: vscode.ExtensionContext) {
 	// This line of code will only be executed once when your extension is activated
 	console.log('Congratulations, your extension "git-history" is now active!');
 
+	// Keep track of the current webview panel
+	let currentPanel: vscode.WebviewPanel | undefined = undefined;
+
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const disposable = vscode.commands.registerCommand('git-history.showHistory', async () => {
 		// The code you place here will be executed every time your command is executed
-		// Create and show a new webview panel
-		const panel = vscode.window.createWebviewPanel(
-			'gitGraphSearch',
-			'Git Graph Search',
-			vscode.ViewColumn.One,
-			{ enableScripts: true }
-		);
+
+		// Determine the column to show the webview in
+		const columnToShowIn = vscode.window.activeTextEditor
+			? vscode.window.activeTextEditor.viewColumn
+			: undefined;
+		// Create and show a new webview currentPanel
+		if (currentPanel) {
+			currentPanel.reveal(columnToShowIn);
+			return;
+		} else {
+			currentPanel = vscode.window.createWebviewPanel(
+				'gitHistory',
+				'Git history',
+				columnToShowIn || vscode.ViewColumn.One,
+				{ enableScripts: true }
+			);
+			// Temporary placeholder until repo selection is done
+			// currentPanel.webview.html = getWebviewContent({ all: [] }, [], 0);
+
+		};
 
 		// Ensure you have an open workspace to infer the repo path.
 		const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -31,77 +47,117 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-        // Find all Git repositories in the workspace folders
-        // Minimal Repository type for VS Code Git API
-        type Repository = {
-            rootUri: vscode.Uri;
-            // Add more properties if needed
-        };
+		// Find all Git repositories in the workspace folders
+		// Minimal Repository type for VS Code Git API
+		type Repository = {
+			rootUri: vscode.Uri;
+			// Add more properties if needed
+		};
 
-        const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
-        const gitApi = gitExtension?.getAPI(1);
-        const repositories: Repository[] = gitApi?.repositories ?? [];
+		const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+		const gitApi = gitExtension?.getAPI(1);
+		const repositories: Repository[] = gitApi?.repositories ?? [];
 
-        if (repositories.length === 0) {
-            vscode.window.showErrorMessage('No Git repositories found in the workspace.');
-            return;
-        }
+		if (repositories.length === 0) {
+			vscode.window.showErrorMessage('No Git repositories found in the workspace.');
+			return;
+		}
 
-        let repoPath: string;
-        if (repositories.length === 1) {
-            repoPath = repositories[0].rootUri.fsPath;
-        } else {
-            // Prompt user to select a repository if multiple are found
-            const repoItems = repositories.map((r) => ({
-                label: r.rootUri.fsPath.split(/[\\/]/).pop() || r.rootUri.fsPath,
-                description: r.rootUri.fsPath
-            }));
-            const selected = await vscode.window.showQuickPick(
-                repoItems,
-                {
-                    placeHolder: 'Select the Git repository to view history',
-                }
-            );
-            if (!selected) {
-                vscode.window.showErrorMessage('No repository selected.');
-                return;
-            }
-            repoPath = selected.description;
-        }
-		const git = simpleGit(repoPath);
+		// Prepare repository list for dropdown
+		const repoList = repositories.map(r => ({
+			name: r.rootUri.fsPath.split(/[\\/]/).pop() || r.rootUri.fsPath,
+			path: r.rootUri.fsPath
+		}));
+		
+		let repoIndex = 0;
+		let repoName: string = repoList[0].name;
+		let repoPath: string = repoList[0].path;
+
+		if (repoList.length > 1) {
+			// Prompt user to select a repository if multiple are found
+			const repoItems = repoList.map((r) => ({
+				label: r.name,
+				description: r.path
+			}));
+			const selected = await vscode.window.showQuickPick(
+				repoItems,
+				{
+					placeHolder: 'Select the Git repository to view history',
+				}
+			);
+			if (!selected) {
+				vscode.window.showErrorMessage('No repository selected.');
+				return;
+			}
+			repoName = selected.label;
+			repoPath = selected.description;
+			repoIndex = repoList.findIndex(r => r.path === repoPath);
+		}
 
 		// Fetch Git logs (this retrieves a list of commits)
-		let logData;
+		let git = simpleGit(repoPath);
+		let logData: { all: any[] };
 		try {
-			logData = await git.log();
+			const rawLog = await git.log({ '--all': null });
+			logData = { all: Array.from(rawLog.all) };
 		} catch (error) {
 			vscode.window.showErrorMessage('Failed to retrieve Git logs.');
 			logData = { all: [] };
 		}
 
-		// Set the initial webview HTML content including the commit data.
-		panel.webview.html = getWebviewContent(logData);
+		// Set the initial webview HTML content including the commit data and repo info.
+		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex);
 
-		// Listen to messages sent from the webview for search functionality.
-		panel.webview.onDidReceiveMessage(async message => {
+		// Listen to messages sent from the webview for search functionality and repo switching.
+		currentPanel.webview.onDidReceiveMessage(async message => {
 			if (message.command === 'search') {
 				const searchQuery = message.text;
-				const filtered = logData.all.filter(commit =>
+				const filtered = logData.all.filter((commit: any) =>
 					commit.author_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					commit.message.toLowerCase().includes(searchQuery.toLowerCase())
+					commit.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
+					commit.hash.toLowerCase().includes(searchQuery.toLowerCase())
 				);
-				panel.webview.postMessage({ command: 'updateGraph', data: filtered });
+				if (currentPanel) {
+					currentPanel.webview.postMessage({ command: 'updateGraph', data: filtered });
+				}
 			} else if (message.command === 'showFiles') {
 				// Get files changed in the commit
 				try {
 					const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
 					const fileList = files.split('\n').filter(f => f.trim() !== '');
-					panel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
+					if (currentPanel) {
+						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
+					}
 				} catch (error) {
-					panel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
+					if (currentPanel) {
+						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
+					}
+				}
+			} else if (message.command === 'selectRepo') {
+				// User selected a repository, update git and reload log
+				repoIndex = message.repoIndex;
+				repoName = repoList[repoIndex].name;
+				repoPath = repoList[repoIndex].path;
+				git = simpleGit(repoPath);
+				try {
+					const rawLog = await git.log({ '--all': null });
+					logData = { all: Array.from(rawLog.all) };
+					if (currentPanel) {
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex });
+					}
+				} catch (error) {
+					if (currentPanel) {
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Failed to get repository history.' });
+					}
 				}
 			}
 		});
+
+		// Reset when the currentPanel is closed
+		currentPanel.onDidDispose(() => {
+			currentPanel = undefined;
+		}, null, context.subscriptions);
+
 	});
 
 	context.subscriptions.push(disposable);
@@ -113,7 +169,7 @@ export function activate(context: vscode.ExtensionContext) {
  *
  * @param logData The Git log data to be rendered.
  */
-function getWebviewContent(logData: any): string {
+function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number): string {
 	return `
 	<!DOCTYPE html>
 	<html lang="en">
@@ -133,6 +189,13 @@ function getWebviewContent(logData: any): string {
 				margin: 18px 0 12px 0;
 				color: var(--vscode-editor-foreground);
 				text-align: center;
+			}
+			#repoSection {
+				margin: 18px 0 0 0;
+				display: flex;
+				gap: 8px;
+				align-items: center;
+				justify-content: center;
 			}
 			#searchSection {
 				margin: 18px 0 18px 0;
@@ -216,14 +279,38 @@ function getWebviewContent(logData: any): string {
 	</head>
 	<body>
 		<h1>Git history</h1>
+		<div id="repoSection">
+			<label for="repoSelect">Repository:</label>
+			<select id="repoSelect"></select>
+			<span id="repoName" style="font-weight:bold;"></span>
+		</div>
 		<div id="searchSection">
-			<input type="text" id="searchBox" placeholder="Search by author or comment" />
+			<input type="text" id="searchBox" placeholder="Search by author or commit id or comment" />
 			<button onclick="search()">Search</button>
 		</div>
 		<div id="graph"></div>
 		<script>
 			const vscode = acquireVsCodeApi();
 			let commits = ${JSON.stringify(logData.all)};
+			let repoList = ${JSON.stringify(repoList)};	
+			let repoIndex = ${repoIndex};
+			function populateRepoSelector() {
+				const select = document.getElementById('repoSelect');
+				const nameSpan = document.getElementById('repoName');
+				if (!select || !nameSpan) return;
+				select.options.length = 0;
+				repoList.forEach(function(repo, idx) {
+					const opt = document.createElement('option');
+					opt.value = idx;
+					opt.textContent = repo.name;
+					if (idx === repoIndex) opt.selected = true;
+					select.appendChild(opt);
+				});
+				nameSpan.textContent = repoList[repoIndex].name;
+				select.onchange = function() {
+					vscode.postMessage({ command: 'selectRepo', repoIndex: parseInt(select.value, 10) });
+				};
+			}
 			function renderGraph(data) {
 				const graphDiv = document.getElementById('graph');
 				if (!data.length) {
@@ -262,25 +349,30 @@ function getWebviewContent(logData: any): string {
 			window.showFiles = function(commitId) {
 				vscode.postMessage({ command: 'showFiles', commitId });
 			}
-			window.addEventListener('message', event => {
+			window.addEventListener('message', function(event) {
 				const message = event.data;
 				if(message.command === 'updateGraph') {
-					renderGraph(message.data);
+					commits = message.data;
+					if (typeof message.repoIndex === 'number') {
+						repoIndex = message.repoIndex;
+						populateRepoSelector();
+					}
+					renderGraph(commits);
 				} else if(message.command === 'showFiles') {
 					const filesDiv = document.getElementById('files-' + message.commitId);
 					if (filesDiv) {
 						if (message.error) {
-							filesDiv.innerHTML = \`<span style='color:red;'>\${message.error}</span>\`;
+							filesDiv.innerHTML = '<span style="color:red;">' + message.error + '</span>';
 						} else if (message.files.length === 0) {
 							filesDiv.innerHTML = '<em>No files changed.</em>';
 						} else {
-							filesDiv.innerHTML = '<ul>' + message.files.map(f => \`<li>\${f}</li>\`).join('') + '</ul>';
+							filesDiv.innerHTML = '<ul>' + message.files.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
 						}
 					}
 				}
 			});
-			// Add event listener for Enter key on searchBox
 			document.addEventListener('DOMContentLoaded', function() {
+				populateRepoSelector();
 				const searchBox = document.getElementById('searchBox');
 				if (searchBox) {
 					searchBox.addEventListener('keydown', function(e) {
@@ -289,8 +381,8 @@ function getWebviewContent(logData: any): string {
 						}
 					});
 				}
+				renderGraph(commits);
 			});
-			renderGraph(commits);
 		</script>
 	</body>
 	</html>
@@ -299,4 +391,4 @@ function getWebviewContent(logData: any): string {
 
 
 // This method is called when your extension is deactivated
-export function deactivate() {}
+export function deactivate() { }
