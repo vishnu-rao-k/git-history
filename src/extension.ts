@@ -30,23 +30,44 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showErrorMessage('No workspace open. Please open a Git repository.');
 			return;
 		}
-		let repoPath: string;
-		if (workspaceFolders.length === 1) {
-			repoPath = workspaceFolders[0].uri.fsPath;
-		} else {
-			// Prompt user to select a folder if multiple are open
-			const selected = await vscode.window.showQuickPick(
-				workspaceFolders.map(f => ({ label: f.name, description: f.uri.fsPath })),
-				{
-					placeHolder: 'Select the repository folder to view history',
-				}
-			);
-			if (!selected) {
-				vscode.window.showErrorMessage('No repository folder selected.');
-				return;
-			}
-			repoPath = selected.description;
-		}
+
+        // Find all Git repositories in the workspace folders
+        // Minimal Repository type for VS Code Git API
+        type Repository = {
+            rootUri: vscode.Uri;
+            // Add more properties if needed
+        };
+
+        const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+        const gitApi = gitExtension?.getAPI(1);
+        const repositories: Repository[] = gitApi?.repositories ?? [];
+
+        if (repositories.length === 0) {
+            vscode.window.showErrorMessage('No Git repositories found in the workspace.');
+            return;
+        }
+
+        let repoPath: string;
+        if (repositories.length === 1) {
+            repoPath = repositories[0].rootUri.fsPath;
+        } else {
+            // Prompt user to select a repository if multiple are found
+            const repoItems = repositories.map((r) => ({
+                label: r.rootUri.fsPath.split(/[\\/]/).pop() || r.rootUri.fsPath,
+                description: r.rootUri.fsPath
+            }));
+            const selected = await vscode.window.showQuickPick(
+                repoItems,
+                {
+                    placeHolder: 'Select the Git repository to view history',
+                }
+            );
+            if (!selected) {
+                vscode.window.showErrorMessage('No repository selected.');
+                return;
+            }
+            repoPath = selected.description;
+        }
 		const git = simpleGit(repoPath);
 
 		// Fetch Git logs (this retrieves a list of commits)
