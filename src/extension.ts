@@ -119,7 +119,7 @@ function getWebviewContent(logData: any): string {
 	<html lang="en">
 	<head>
 		<meta charset="UTF-8">
-		<title>Git Graph Search</title>
+		<title>Git history</title>
 		<style>
 			body {
 				font-family: var(--vscode-font-family, sans-serif);
@@ -215,7 +215,7 @@ function getWebviewContent(logData: any): string {
 		</style>
 	</head>
 	<body>
-		<h1>Git Graph</h1>
+		<h1>Git history</h1>
 		<div id="searchSection">
 			<input type="text" id="searchBox" placeholder="Search by author or comment" />
 			<button onclick="search()">Search</button>
