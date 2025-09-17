@@ -1,7 +1,47 @@
 // The module 'vscode' contains the VS Code extensibility API
 // Import the module and reference it with the alias vscode in your code below
 import * as vscode from 'vscode';
-import simpleGit from 'simple-git';
+import simpleGit, { SimpleGit } from 'simple-git';
+
+// Function to get list of git repositories in the workspace
+// (Not currently used, but could be useful for future enhancements)
+async function getGitRepositories(): Promise<string[]> {
+	const workspaceFolders = vscode.workspace.workspaceFolders;
+	if (!workspaceFolders) {
+		return [];
+	}
+	// Find all Git repositories in the workspace folders
+	// Minimal Repository type for VS Code Git API
+	type Repository = {
+		rootUri: vscode.Uri;
+		// Add more properties if needed
+	};
+
+	const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
+	const gitApi = gitExtension?.getAPI(1);
+	const repositories: Repository[] = gitApi?.repositories ?? [];
+	return repositories.map(r => r.rootUri.fsPath);
+}
+
+// Function to fetch git logs using simple-git
+async function fetchGitLogs(git: SimpleGit): Promise<{ all: any[] }> {
+	try {
+		const log = await git.log();
+		return { all: Array.from(log.all) };
+	} catch (error) {
+		throw new Error('Failed to fetch git logs: ' + (error as Error).message);
+	}
+}
+
+// Function to get branch list using simple-git
+async function getGitBranches(git: SimpleGit): Promise<{ current: string, all: string[] }> {
+	try {
+		const branches = await git.branch();
+		return { current: branches.current, all: branches.all };
+	} catch (error) {
+		throw new Error('Failed to fetch git branches: ' + (error as Error).message);
+	}
+}
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -27,16 +67,8 @@ export function activate(context: vscode.ExtensionContext) {
 			return;
 		}
 
-		// Find all Git repositories in the workspace folders
-		// Minimal Repository type for VS Code Git API
-		type Repository = {
-			rootUri: vscode.Uri;
-			// Add more properties if needed
-		};
-
-		const gitExtension = vscode.extensions.getExtension('vscode.git')?.exports;
-		const gitApi = gitExtension?.getAPI(1);
-		const repositories: Repository[] = gitApi?.repositories ?? [];
+		// const repositories: Repository[] = gitApi?.repositories ?? [];
+		let repositories: string[] = await getGitRepositories();
 
 		if (repositories.length === 0) {
 			vscode.window.showErrorMessage('No Git repositories found in the workspace.');
@@ -45,10 +77,9 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Prepare repository list for dropdown
 		const repoList = repositories.map(r => ({
-			name: r.rootUri.fsPath.split(/[\\/]/).pop() || r.rootUri.fsPath,
-			path: r.rootUri.fsPath
+			name: r.split(/[\\/]/).pop() || r,
+			path: r
 		}));
-
 		let repoIndex = 0;
 		let repoName: string = repoList[0].name;
 		let repoPath: string = repoList[0].path;
@@ -76,13 +107,34 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Fetch Git logs (this retrieves a list of commits)
 		let git = simpleGit(repoPath);
-		let logData: { all: any[] };
+		let logData: { all: any[] } = await fetchGitLogs(git);
+
+		// Check if git log retrieval was successful
+		if (!logData || !logData.all) {
+			vscode.window.showErrorMessage(`Failed to retrieve git logs for repository '${repoName}'.`);
+			return;
+		}
+
+		// Get list of all branches of the repository
+		// (Not currently used in the UI, but could be added for branch filtering)
+		let currentBranch: string = '';
+		let branches: string[] = [];
+		let branchIndex: number = -1;
 		try {
-			const rawLog = await git.log({ '--all': null });
-			logData = { all: Array.from(rawLog.all) };
+			const branchInfo = await getGitBranches(git);
+			currentBranch = branchInfo.current;
+			branches = branchInfo.all;
+			branchIndex = branches.indexOf(currentBranch);
+			// branches.all contains the list of branch names
+			// Could be sent to webview if needed
 		} catch (error) {
-			vscode.window.showErrorMessage('Failed to retrieve Git logs.');
-			logData = { all: [] };
+			// Ignore branch retrieval errors for now
+		}
+
+		// Check if branches were fetched successfully
+		// If needed, could send to webview for branch selection
+		if (!branches || branches.length === 0) {
+			vscode.window.showWarningMessage(`No branches found in repository '${repoName}'.`);
 		}
 
 		// Determine the column to show the webview in
@@ -138,7 +190,7 @@ export function activate(context: vscode.ExtensionContext) {
 				repoPath = repoList[repoIndex].path;
 				git = simpleGit(repoPath);
 				try {
-					const rawLog = await git.log({ '--all': null });
+					const rawLog = await git.log();
 					logData = { all: Array.from(rawLog.all) };
 					if (currentPanel) {
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex });
