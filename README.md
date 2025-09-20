@@ -36,3 +36,7 @@ Initial release of the git history extension.
 ### 0.0.5
 
 - Fixed dependencies
+
+# 0.0.6 September 2025
+
+- A new feature to show branch name in the webview panel and to change the branch selection.

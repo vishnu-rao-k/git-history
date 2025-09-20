@@ -1,3 +1,9 @@
+# 0.0.6 September 2025
+
+## Added
+
+- A new feature to show branch name in the webview panel and to change the branch selection.
+
 # 0.0.5 August 2025
 
 ## Fixed
