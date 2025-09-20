@@ -24,7 +24,7 @@ async function getGitRepositories(): Promise<string[]> {
 }
 
 // Function to fetch git logs using simple-git
-async function fetchGitLogs(git: SimpleGit): Promise<{ all: any[] }> {
+export async function fetchGitLogs(git: SimpleGit): Promise<{ all: any[] }> {
 	try {
 		const log = await git.log();
 		return { all: Array.from(log.all) };
@@ -34,7 +34,7 @@ async function fetchGitLogs(git: SimpleGit): Promise<{ all: any[] }> {
 }
 
 // Function to get branch list using simple-git
-async function getGitBranches(git: SimpleGit): Promise<{ current: string, all: string[] }> {
+export async function getGitBranches(git: SimpleGit): Promise<{ current: string, all: string[] }> {
 	try {
 		const branches = await git.branch();
 		return { current: branches.current, all: branches.all };
@@ -252,7 +252,7 @@ export function activate(context: vscode.ExtensionContext) {
  *
  * @param logData The Git log data to be rendered.
  */
-function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number, branches: string[], branchIndex: number ): string {
+export function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number, branches: string[], branchIndex: number ): string {
 	return `
 	<!DOCTYPE html>
 	<html lang="en">
