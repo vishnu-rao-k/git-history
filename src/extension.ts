@@ -145,7 +145,7 @@ export function activate(context: vscode.ExtensionContext) {
 		if (currentPanel) {
 			// If we already have a panel, update its content with the latest data.
 			// and show it in the target column
-			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex);
+			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
 			currentPanel.reveal(columnToShowIn);
 		} else {
 			currentPanel = vscode.window.createWebviewPanel(
@@ -155,7 +155,7 @@ export function activate(context: vscode.ExtensionContext) {
 				{ enableScripts: true }
 			);
 			// Set the initial webview HTML content including the commit data and repo info.
-			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex);
+			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
 		};
 
 		// Listen to messages sent from the webview for search functionality and repo switching.
@@ -192,12 +192,45 @@ export function activate(context: vscode.ExtensionContext) {
 				try {
 					const rawLog = await git.log();
 					logData = { all: Array.from(rawLog.all) };
+					const branchInfo = await getGitBranches(git);
+					branches = branchInfo.all;
+					currentBranch = branchInfo.current;
+					branchIndex = branches.indexOf(currentBranch);
 					if (currentPanel) {
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex });
+						// Print info message
+						vscode.window.showInformationMessage(`Switching to repo: ${repoName}`);
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex, branches, branchIndex });
 					}
 				} catch (error) {
 					if (currentPanel) {
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Failed to get repository history.' });
+					}
+				}
+			} else if (message.command === 'selectBranch') {
+				// User selected a branch, update git and reload log
+				repoIndex = message.repoIndex;
+				repoName = repoList[repoIndex].name;
+				repoPath = repoList[repoIndex].path;
+				currentBranch = branches[message.branchIndex];
+				git = simpleGit(repoPath);
+				if (message.branchIndex < 0 || message.branchIndex >= branches.length) {
+					vscode.window.showErrorMessage(`Invalid branch selected.`);
+					return;
+				}
+				try {
+					const rawLog = await git.log([currentBranch]);
+					logData = { all: Array.from(rawLog.all) };
+					const lengthOfLog = logData.all.length;
+					if (currentPanel) {
+						// Print info message
+						vscode.window.showInformationMessage(`Switching to branch: ${currentBranch} in repo: ${repoName}`);
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex});
+					}
+				} catch (error) {
+					if (currentPanel) {
+						vscode.window.showErrorMessage(`Failed to get history for branch: ${currentBranch}`);
+						// Send empty data with error message to webview
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], error: 'Failed to get repository history for the selected branch.' });
 					}
 				}
 			}
@@ -219,7 +252,7 @@ export function activate(context: vscode.ExtensionContext) {
  *
  * @param logData The Git log data to be rendered.
  */
-function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number): string {
+function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number, branches: string[], branchIndex: number ): string {
 	return `
 	<!DOCTYPE html>
 	<html lang="en">
@@ -241,6 +274,13 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 				text-align: center;
 			}
 			#repoSection {
+				margin: 18px 0 0 0;
+				display: flex;
+				gap: 8px;
+				align-items: center;
+				justify-content: center;
+			}
+			#branchSection {
 				margin: 18px 0 0 0;
 				display: flex;
 				gap: 8px;
@@ -334,6 +374,10 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 			<select id="repoSelect"></select>
 			<span id="repoName" style="font-weight:bold;"></span>
 		</div>
+		<div id="branchSection">
+			<label for="branchSelect">Branch:</label>
+			<select id="branchSelect"></select>
+		</div>
 		<div id="searchSection">
 			<input type="text" id="searchBox" placeholder="Search by author or commit id or comment" />
 			<button onclick="search()">Search</button>
@@ -344,6 +388,9 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 			let commits = ${JSON.stringify(logData.all)};
 			let repoList = ${JSON.stringify(repoList)};	
 			let repoIndex = ${repoIndex};
+			let branches = ${JSON.stringify(branches)};
+			let branchIndex = ${branchIndex};
+
 			function populateRepoSelector() {
 				const select = document.getElementById('repoSelect');
 				const nameSpan = document.getElementById('repoName');
@@ -361,6 +408,23 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 					vscode.postMessage({ command: 'selectRepo', repoIndex: parseInt(select.value, 10) });
 				};
 			}
+
+			function populateBranchSelector() {
+				const select = document.getElementById('branchSelect');
+				if (!select) return;
+				select.options.length = 0;
+				branches.forEach(function(branch, idx) {
+					const opt = document.createElement('option');
+					opt.value = idx;
+					opt.textContent = branch;
+					if (idx === branchIndex) opt.selected = true;
+					select.appendChild(opt);
+				});
+				select.onchange = function() {
+					vscode.postMessage({ command: 'selectBranch', repoIndex: repoIndex, branchIndex: parseInt(select.value, 10) });
+				};
+			}
+
 			function renderGraph(data) {
 				const graphDiv = document.getElementById('graph');
 				if (!data.length) {
@@ -407,7 +471,12 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 						repoIndex = message.repoIndex;
 						populateRepoSelector();
 					}
-					renderGraph(commits);
+					if (Array.isArray(message.branches)) {
+						branches = message.branches;
+						populateBranchSelector();
+					}
+					// Re-render the graph with the new data
+				renderGraph(commits);
 				} else if(message.command === 'showFiles') {
 					const filesDiv = document.getElementById('files-' + message.commitId);
 					if (filesDiv) {
@@ -423,6 +492,7 @@ function getWebviewContent(logData: any, repoList: { name: string, path: string 
 			});
 			document.addEventListener('DOMContentLoaded', function() {
 				populateRepoSelector();
+				populateBranchSelector();
 				const searchBox = document.getElementById('searchBox');
 				if (searchBox) {
 					searchBox.addEventListener('keydown', function(e) {
