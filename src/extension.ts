@@ -145,7 +145,9 @@ export function activate(context: vscode.ExtensionContext) {
 		if (currentPanel) {
 			// If we already have a panel, update its content with the latest data.
 			// and show it in the target column
-			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
+			vscode.window.showInformationMessage('Previous panel found.');
+			currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex});
+			// currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
 			currentPanel.reveal(columnToShowIn);
 		} else {
 			currentPanel = vscode.window.createWebviewPanel(
@@ -154,6 +156,7 @@ export function activate(context: vscode.ExtensionContext) {
 				columnToShowIn || vscode.ViewColumn.One,
 				{ enableScripts: true }
 			);
+			vscode.window.showInformationMessage('New panel.');
 			// Set the initial webview HTML content including the commit data and repo info.
 			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
 		};
@@ -199,7 +202,7 @@ export function activate(context: vscode.ExtensionContext) {
 					if (currentPanel) {
 						// Print info message
 						vscode.window.showInformationMessage(`Switching to repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex, branches, branchIndex });
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex });
 					}
 				} catch (error) {
 					if (currentPanel) {
@@ -228,11 +231,14 @@ export function activate(context: vscode.ExtensionContext) {
 					}
 				} catch (error) {
 					if (currentPanel) {
-						vscode.window.showErrorMessage(`Failed to get history for branch: ${currentBranch}`);
+						vscode.window.showErrorMessage(`Failed to get history for branch: ${currentBranch} in repo: ${repoName}`);
 						// Send empty data with error message to webview
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], error: 'Failed to get repository history for the selected branch.' });
 					}
 				}
+			} else if (message.command === 'info') {
+				// Show the message
+				vscode.window.showInformationMessage(message.text);
 			}
 		});
 
@@ -252,7 +258,7 @@ export function activate(context: vscode.ExtensionContext) {
  *
  * @param logData The Git log data to be rendered.
  */
-export function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number, branches: string[], branchIndex: number ): string {
+export function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number, branches: string[], branchIndex: number): string {
 	return `
 	<!DOCTYPE html>
 	<html lang="en">
@@ -385,11 +391,33 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 		<div id="graph"></div>
 		<script>
 			const vscode = acquireVsCodeApi();
-			let commits = ${JSON.stringify(logData.all)};
-			let repoList = ${JSON.stringify(repoList)};	
-			let repoIndex = ${repoIndex};
-			let branches = ${JSON.stringify(branches)};
-			let branchIndex = ${branchIndex};
+			vscode.postMessage({ command: 'info', text: 'Inside the script starting' });
+			const previousState = vscode.getState();
+			vscode.postMessage({ command: 'info', text: 'After runing getState.' });
+			let commits, repoList, repoIndex, branches, branchIndex, tableHtml;
+			// If previous state exists, use it to restore variables
+			if (previousState) {
+				vscode.postMessage({ command: 'info', text: 'Previous state found.' });
+				commits = previousState.commits ? previousState.commits : ${JSON.stringify(logData.all)};
+				repoList = previousState.repoList ? previousState.repoList : ${JSON.stringify(repoList)};	
+				repoIndex = previousState.repoIndex ? previousState.repoIndex : ${repoIndex};
+				branches = previousState.branches ? previousState.branches : ${JSON.stringify(branches)};
+				branchIndex = previousState.branchIndex ? previousState.branchIndex : ${branchIndex};
+				tableHtml = previousState.tableHtml ? previousState.tableHtml : '';
+				vscode.postMessage({ command: 'info', text: 'Restored variables from previous state.' });
+				vscode.postMessage({ command: 'info', text: 'branchIndex: ' + branchIndex + ' repoIndex: ' + repoIndex + ' commits: ' + commits.length });
+			}
+			else {
+				vscode.postMessage({ command: 'info', text: 'No previous state found.' });
+				commits = ${JSON.stringify(logData.all)};
+				repoList = ${JSON.stringify(repoList)};
+				repoIndex = ${repoIndex};
+				branches = ${JSON.stringify(branches)};
+				branchIndex = ${branchIndex};
+				vscode.setState({ commits, repoList, repoIndex, branches, branchIndex });
+			}
+
+			vscode.postMessage({ command: 'info', text: 'After setting variables.' });
 
 			function populateRepoSelector() {
 				const select = document.getElementById('repoSelect');
@@ -421,40 +449,58 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 					select.appendChild(opt);
 				});
 				select.onchange = function() {
-					vscode.postMessage({ command: 'selectBranch', repoIndex: repoIndex, branchIndex: parseInt(select.value, 10) });
+					branchIndex = parseInt(select.value, 10);
+					vscode.postMessage({ command: 'selectBranch', repoIndex: repoIndex, branchIndex });
+					vscode.postMessage({ command: 'info', text: 'Selected branch index: ' + branchIndex });
 				};
 			}
 
 			function renderGraph(data) {
-				const graphDiv = document.getElementById('graph');
-				if (!data.length) {
-					graphDiv.innerHTML = '<em>No commits found.</em>';
-					return;
+				vscode.postMessage({ command: 'info', text: 'Rendering graph with ' + data.length + ' commits.' });
+				if (!tableHtml) {
+					vscode.postMessage({ command: 'info', text: 'No previous tableHtml, rendering new table.' });
+					const graphDiv = document.getElementById('graph');
+					if (!data.length) {
+						vscode.postMessage({ command: 'info', text: 'No commits found.' });
+						tableHtml = '<em>No commits found.</em>';
+					}
+					else {
+						vscode.postMessage({ command: 'info', text: 'Generating table HTML header.' });
+						tableHtml = \`<table class="git-log-table">
+							<thead>
+								<tr>
+									<th>Date</th>
+									<th>Author</th>
+									<th>Message</th>
+									<th>Commit ID</th>
+									<th>Files</th>
+								</tr>
+							</thead>
+							<tbody>\`;
+						vscode.postMessage({ command: 'info', text: 'Generating table HTML data.' });
+						data.forEach(commit => {
+							tableHtml += \`
+								<tr>
+									<td title="\${commit.date}">\${commit.date}</td>
+									<td>\${commit.author_name}</td>
+									<td>\${commit.message}</td>
+									<td style="font-family:monospace;font-size:0.95em;">\${commit.hash}</td>
+									<td><button class="view-files-btn" onclick="showFiles('\${commit.hash}')">View Files</button><div id="files-\${commit.hash}" class="file-list"></div></td>
+								</tr>
+							\`;
+						});
+						vscode.postMessage({ command: 'info', text: 'Generated table HTML data.' });
+						tableHtml += '</tbody></table>';
+						vscode.postMessage({ command: 'info', text: 'Generated complete table.' });
+						vscode.postMessage({ command: 'info', text: 'Table HTML generated. Size - ' + tableHtml.length });
+					}
+					vscode.postMessage({ command: 'info', text: 'Table HTML generated. Size - ' + tableHtml.length });
+					graphDiv.innerHTML = tableHtml;
 				}
-				let table = \`<table class="git-log-table">
-					<thead>
-						<tr>
-							<th>Date</th>
-							<th>Author</th>
-							<th>Message</th>
-							<th>Commit ID</th>
-							<th>Files</th>
-						</tr>
-					</thead>
-					<tbody>\`;
-				data.forEach(commit => {
-					table += \`
-						<tr>
-							<td title="\${commit.date}">\${commit.date}</td>
-							<td>\${commit.author_name}</td>
-							<td>\${commit.message}</td>
-							<td style="font-family:monospace;font-size:0.95em;">\${commit.hash}</td>
-							<td><button class="view-files-btn" onclick="showFiles('\${commit.hash}')">View Files</button><div id="files-\${commit.hash}" class="file-list"></div></td>
-						</tr>
-					\`;
-				});
-				table += '</tbody></table>';
-				graphDiv.innerHTML = table;
+				else {
+					document.getElementById('graph').innerHTML = tableHtml;
+				}
+				vscode.postMessage({ command: 'info', text: 'Rendering graph completed.' });
 			}
 			function search() {
 				const text = document.getElementById('searchBox').value;
@@ -467,16 +513,23 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 				const message = event.data;
 				if(message.command === 'updateGraph') {
 					commits = message.data;
-					if (typeof message.repoIndex === 'number') {
-						repoIndex = message.repoIndex;
+					if (message.repoList !== undefined && message.repoList.length > 0) {
+						repoList = message.repoList;
+						repoIndex = message.repoIndex !== undefined ? message.repoIndex : 0;
 						populateRepoSelector();
+						vscode.postMessage({ command: 'info', text: 'Updated repo list in webview.' });
 					}
-					if (Array.isArray(message.branches)) {
+					if (message.branches !== undefined && message.branches.length > 0) {
 						branches = message.branches;
+						branchIndex = message.branchIndex;
 						populateBranchSelector();
+						vscode.postMessage({ command: 'info', text: 'Updated branches in webview.' });
 					}
 					// Re-render the graph with the new data
-				renderGraph(commits);
+					tableHtml = '';
+					vscode.postMessage({ command: 'info', text: 'Updating commits table in webview.' });
+					renderGraph(commits);
+					vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml });
 				} else if(message.command === 'showFiles') {
 					const filesDiv = document.getElementById('files-' + message.commitId);
 					if (filesDiv) {
@@ -487,10 +540,12 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 						} else {
 							filesDiv.innerHTML = '<ul>' + message.files.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
 						}
+						vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml: document.getElementById('graph').innerHTML });
 					}
 				}
 			});
 			document.addEventListener('DOMContentLoaded', function() {
+				vscode.postMessage({ command: 'info', text: 'Inside the DOMContentLoaded' });
 				populateRepoSelector();
 				populateBranchSelector();
 				const searchBox = document.getElementById('searchBox');
