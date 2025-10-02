@@ -45,6 +45,9 @@ export async function getGitBranches(git: SimpleGit): Promise<{ current: string,
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
+// Set this to true to enable debug/info messages
+const DEBUG_MODE = false;
+
 export function activate(context: vscode.ExtensionContext) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
@@ -152,7 +155,9 @@ export function activate(context: vscode.ExtensionContext) {
 			columnToShowIn || vscode.ViewColumn.One,
 			{ enableScripts: true }
 		);
-		vscode.window.showInformationMessage('New panel.');
+		if (DEBUG_MODE) {
+			vscode.window.showInformationMessage('New panel.');
+		}
 		// Set the initial webview HTML content including the commit data and repo info.
 		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
 
@@ -233,7 +238,9 @@ export function activate(context: vscode.ExtensionContext) {
 				}
 			} else if (message.command === 'info') {
 				// Show the message
-				vscode.window.showInformationMessage(message.text);
+				if (DEBUG_MODE) {
+					vscode.window.showInformationMessage(message.text);
+				}
 			}
 		});
 
