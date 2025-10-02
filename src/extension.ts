@@ -141,25 +141,20 @@ export function activate(context: vscode.ExtensionContext) {
 		const columnToShowIn = vscode.window.activeTextEditor
 			? vscode.window.activeTextEditor.viewColumn
 			: undefined;
-		// Create and show a new webview currentPanel
+		// Always reset the panel when a repo is selected (re-opened)
 		if (currentPanel) {
-			// If we already have a panel, update its content with the latest data.
-			// and show it in the target column
-			vscode.window.showInformationMessage('Previous panel found.');
-			currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex});
-			// currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
-			currentPanel.reveal(columnToShowIn);
-		} else {
-			currentPanel = vscode.window.createWebviewPanel(
-				'gitHistory',
-				'Git history',
-				columnToShowIn || vscode.ViewColumn.One,
-				{ enableScripts: true }
-			);
-			vscode.window.showInformationMessage('New panel.');
-			// Set the initial webview HTML content including the commit data and repo info.
-			currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
-		};
+			currentPanel.dispose();
+			currentPanel = undefined;
+		}
+		currentPanel = vscode.window.createWebviewPanel(
+			'gitHistory',
+			'Git history',
+			columnToShowIn || vscode.ViewColumn.One,
+			{ enableScripts: true }
+		);
+		vscode.window.showInformationMessage('New panel.');
+		// Set the initial webview HTML content including the commit data and repo info.
+		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
 
 		// Listen to messages sent from the webview for search functionality and repo switching.
 		currentPanel.webview.onDidReceiveMessage(async message => {
