@@ -222,7 +222,7 @@ export function activate(context: vscode.ExtensionContext) {
 					if (currentPanel) {
 						// Print info message
 						vscode.window.showInformationMessage(`Switching to branch: ${currentBranch} in repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoIndex});
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, branchIndex: message.branchIndex });
 					}
 				} catch (error) {
 					if (currentPanel) {
@@ -512,17 +512,25 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 				const message = event.data;
 				if(message.command === 'updateGraph') {
 					commits = message.data;
+					let clearSearch = false;
 					if (message.repoList !== undefined && message.repoList.length > 0) {
 						repoList = message.repoList;
 						repoIndex = message.repoIndex !== undefined ? message.repoIndex : 0;
 						populateRepoSelector();
 						vscode.postMessage({ command: 'info', text: 'Updated repo list in webview.' });
+						clearSearch = true;
 					}
 					if (message.branches !== undefined && message.branches.length > 0) {
 						branches = message.branches;
 						branchIndex = message.branchIndex;
 						populateBranchSelector();
 						vscode.postMessage({ command: 'info', text: 'Updated branches in webview.' });
+						clearSearch = true;
+					}
+					// Clear search box if repo or branch changed
+					if (clearSearch || message.branchIndex !== undefined) {
+						const searchBox = document.getElementById('searchBox');
+						if (searchBox) searchBox.value = '';
 					}
 					// Re-render the graph with the new data
 					tableHtml = '';
