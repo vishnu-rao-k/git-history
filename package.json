@@ -2,7 +2,7 @@
   "name": "git-history",
   "displayName": "Git History fast",
   "description": "View and search complete git history of a repository with ease.",
-  "version": "0.0.6",
+  "version": "0.0.7",
   "engines": {
     "vscode": "^1.95.0"
   },

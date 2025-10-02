@@ -1,3 +1,18 @@
+# 0.0.7 October 2025
+
+## Added
+
+- Implented save and get state functionality in the webivew panel to improve performance of the extension.
+
+## Changed
+
+- Enhanced the styling of the webview panel to make it compatible with light and dark themes.
+
+## Fixed
+
+- Fix webview panel message handling and clear search box on repo or branch change
+
+
 # 0.0.6 September 2025
 
 ## Added
