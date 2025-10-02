@@ -1,3 +1,21 @@
+# 0.0.8 October 2025
+
+## Added
+
+- Improved repository and branch selection logic for multi-root workspaces.
+- Enhanced error handling for git operations and user feedback in the webview.
+- Added persistent state management for the webview panel, improving performance and user experience.
+
+## Changed
+
+- Refactored webview communication and message handling for better reliability.
+- Updated UI responsiveness and theme compatibility for both light and dark themes.
+
+## Fixed
+
+- Fixed issues with branch and repository switching not updating the UI correctly.
+- Resolved minor bugs in commit log rendering and search functionality.
+
 # 0.0.7 October 2025
 
 ## Added

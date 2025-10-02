@@ -153,7 +153,7 @@ export function activate(context: vscode.ExtensionContext) {
 			'gitHistory',
 			'Git history',
 			columnToShowIn || vscode.ViewColumn.One,
-			{ enableScripts: true }
+			{ enableScripts: true, retainContextWhenHidden: true}
 		);
 		if (DEBUG_MODE) {
 			vscode.window.showInformationMessage('New panel.');
@@ -398,30 +398,39 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 		<script>
 			const vscode = acquireVsCodeApi();
 			vscode.postMessage({ command: 'info', text: 'Inside the script starting' });
-			const previousState = vscode.getState();
-			vscode.postMessage({ command: 'info', text: 'After runing getState.' });
+			
+			// const previousState = vscode.getState();
+			// vscode.postMessage({ command: 'info', text: 'After runing getState.' });
+			
 			let commits, repoList, repoIndex, branches, branchIndex, tableHtml;
+
 			// If previous state exists, use it to restore variables
-			if (previousState) {
-				vscode.postMessage({ command: 'info', text: 'Previous state found.' });
-				commits = previousState.commits ? previousState.commits : ${JSON.stringify(logData.all)};
-				repoList = previousState.repoList ? previousState.repoList : ${JSON.stringify(repoList)};	
-				repoIndex = previousState.repoIndex ? previousState.repoIndex : ${repoIndex};
-				branches = previousState.branches ? previousState.branches : ${JSON.stringify(branches)};
-				branchIndex = previousState.branchIndex ? previousState.branchIndex : ${branchIndex};
-				tableHtml = previousState.tableHtml ? previousState.tableHtml : '';
-				vscode.postMessage({ command: 'info', text: 'Restored variables from previous state.' });
-				vscode.postMessage({ command: 'info', text: 'branchIndex: ' + branchIndex + ' repoIndex: ' + repoIndex + ' commits: ' + commits.length });
-			}
-			else {
-				vscode.postMessage({ command: 'info', text: 'No previous state found.' });
-				commits = ${JSON.stringify(logData.all)};
-				repoList = ${JSON.stringify(repoList)};
-				repoIndex = ${repoIndex};
-				branches = ${JSON.stringify(branches)};
-				branchIndex = ${branchIndex};
-				vscode.setState({ commits, repoList, repoIndex, branches, branchIndex });
-			}
+			// if (previousState) {
+			// 	vscode.postMessage({ command: 'info', text: 'Previous state found.' });
+			// 	commits = previousState.commits ? previousState.commits : ${JSON.stringify(logData.all)};
+			// 	repoList = previousState.repoList ? previousState.repoList : ${JSON.stringify(repoList)};	
+			// 	repoIndex = previousState.repoIndex ? previousState.repoIndex : ${repoIndex};
+			// 	branches = previousState.branches ? previousState.branches : ${JSON.stringify(branches)};
+			// 	branchIndex = previousState.branchIndex ? previousState.branchIndex : ${branchIndex};
+			// 	tableHtml = previousState.tableHtml ? previousState.tableHtml : '';
+			// 	vscode.postMessage({ command: 'info', text: 'Restored variables from previous state.' });
+			// 	vscode.postMessage({ command: 'info', text: 'branchIndex: ' + branchIndex + ' repoIndex: ' + repoIndex + ' commits: ' + commits.length });
+			// }
+			// else {
+			// 	vscode.postMessage({ command: 'info', text: 'No previous state found.' });
+			// 	commits = ${JSON.stringify(logData.all)};
+			// 	repoList = ${JSON.stringify(repoList)};
+			// 	repoIndex = ${repoIndex};
+			// 	branches = ${JSON.stringify(branches)};
+			// 	branchIndex = ${branchIndex};
+			// 	vscode.setState({ commits, repoList, repoIndex, branches, branchIndex });
+			// }
+				
+			commits = ${JSON.stringify(logData.all)};
+			repoList = ${JSON.stringify(repoList)};
+			repoIndex = ${repoIndex};
+			branches = ${JSON.stringify(branches)};
+			branchIndex = ${branchIndex};
 
 			vscode.postMessage({ command: 'info', text: 'After setting variables.' });
 
@@ -543,7 +552,7 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 					tableHtml = '';
 					vscode.postMessage({ command: 'info', text: 'Updating commits table in webview.' });
 					renderGraph(commits);
-					vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml });
+					// vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml });
 				} else if(message.command === 'showFiles') {
 					const filesDiv = document.getElementById('files-' + message.commitId);
 					if (filesDiv) {
@@ -554,7 +563,7 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 						} else {
 							filesDiv.innerHTML = '<ul>' + message.files.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
 						}
-						vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml: document.getElementById('graph').innerHTML });
+						// vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml: document.getElementById('graph').innerHTML });
 					}
 				}
 			});
