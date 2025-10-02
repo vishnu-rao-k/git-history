@@ -266,27 +266,23 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 		<meta charset="UTF-8">	
 		<title>Git history</title>
 		<style>
+			:root {
+				color-scheme: light dark;
+			}
 			body {
 				font-family: var(--vscode-font-family, sans-serif);
-				color: var(--vscode-editor-foreground);
-				background: var(--vscode-editor-background);
+				color: var(--vscode-editor-foreground, #333);
+				background: var(--vscode-editor-background, #fff);
 				margin: 0;
 				padding: 0 0 24px 0;
 			}
 			h1 {
 				font-size: 1.5em;
 				margin: 18px 0 12px 0;
-				color: var(--vscode-editor-foreground);
+				color: var(--vscode-editor-foreground, #333);
 				text-align: center;
 			}
-			#repoSection {
-				margin: 18px 0 0 0;
-				display: flex;
-				gap: 8px;
-				align-items: center;
-				justify-content: center;
-			}
-			#branchSection {
+			#repoSection, #branchSection, #searchSection {
 				margin: 18px 0 0 0;
 				display: flex;
 				gap: 8px;
@@ -295,28 +291,24 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 			}
 			#searchSection {
 				margin: 18px 0 18px 0;
-				display: flex;
-				gap: 8px;
-				align-items: center;
-				justify-content: center;
 			}
 			#searchBox {
 				width: 60%;
 				padding: 8px 12px;
 				border-radius: 5px;
-				border: 1px solid var(--vscode-input-border);
-				background: var(--vscode-input-background);
-				color: var(--vscode-input-foreground);
+				border: 1px solid var(--vscode-input-border, #ccc);
+				background: var(--vscode-input-background, #fff);
+				color: var(--vscode-input-foreground, #333);
 				font-size: 1em;
 				transition: border 0.2s;
 			}
 			#searchBox:focus {
 				outline: none;
-				border: 1.5px solid var(--vscode-focusBorder);
+				border: 1.5px solid var(--vscode-focusBorder, #0078d4);
 			}
 			button {
-				background: var(--vscode-button-background);
-				color: var(--vscode-button-foreground);
+				background: var(--vscode-button-background, #0078d4);
+				color: var(--vscode-button-foreground, #fff);
 				border: none;
 				border-radius: 5px;
 				padding: 8px 18px;
@@ -325,18 +317,30 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 				transition: background 0.2s;
 			}
 			button:hover {
-				background: var(--vscode-button-hoverBackground);
+				background: var(--vscode-button-hoverBackground, #005a9e);
+			}
+			select {
+				background: var(--vscode-input-background, #fff);
+				color: var(--vscode-input-foreground, #333);
+				border: 1px solid var(--vscode-input-border, #ccc);
+				border-radius: 4px;
+				padding: 6px 10px;
+				font-size: 1em;
+			}
+			select:focus {
+				outline: none;
+				border: 1.5px solid var(--vscode-focusBorder, #0078d4);
 			}
 			table.git-log-table {
 				width: 100%;
 				border-collapse: collapse;
 				margin-top: 10px;
-				background: var(--vscode-editor-background);
-				color: var(--vscode-editor-foreground);
+				background: var(--vscode-editor-background, #fff);
+				color: var(--vscode-editor-foreground, #333);
 				box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
 			}
 			table.git-log-table th, table.git-log-table td {
-				border: 1px solid var(--vscode-editorWidget-border);
+				border: 1px solid var(--vscode-editorWidget-border, #e1e1e1);
 				padding: 8px 10px;
 				text-align: left;
 				min-width: 80px;
@@ -344,32 +348,32 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 				overflow: auto;
 			}
 			table.git-log-table th {
-				background: var(--vscode-editorWidget-background);
-				color: var(--vscode-editorWidget-foreground);
+				background: var(--vscode-editorWidget-background, #f3f3f3);
+				color: var(--vscode-editorWidget-foreground, #333);
 				font-weight: 600;
 				resize: horizontal;
 				cursor: col-resize;
 			}
 			table.git-log-table tr:nth-child(even) td {
-				background: var(--vscode-sideBar-background);
+				background: var(--vscode-sideBar-background, #f8f8f8);
 			}
 			.file-list {
 				margin: 8px 0 8px 24px;
-				color: var(--vscode-descriptionForeground);
+				color: var(--vscode-descriptionForeground, #888);
 			}
 			.view-files-btn {
 				padding: 4px 12px;
 				font-size: 0.95em;
 				border-radius: 4px;
 				border: 1px solid var(--vscode-button-border, transparent);
-				background: var(--vscode-button-secondaryBackground, var(--vscode-button-background));
-				color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground));
+				background: var(--vscode-button-secondaryBackground, var(--vscode-button-background, #0078d4));
+				color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground, #fff));
 			}
 			.view-files-btn:hover {
-				background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground));
+				background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground, #005a9e));
 			}
 			em, .file-list em {
-				color: var(--vscode-descriptionForeground);
+				color: var(--vscode-descriptionForeground, #888);
 			}
 		</style>
 	</head>
