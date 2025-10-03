@@ -470,6 +470,16 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 				};
 			}
 
+			// Helper to format date string to local time
+			function formatLocalDate(dateStr) {
+				// Try to parse as ISO, fallback to original if fails
+				const d = new Date(dateStr);
+				if (!isNaN(d.getTime())) {
+					return d.toLocaleString();
+				}
+				return dateStr;
+			}
+
 			function renderGraph(data) {
 				vscode.postMessage({ command: 'info', text: 'Rendering graph with ' + data.length + ' commits.' });
 				if (!tableHtml) {
@@ -481,28 +491,26 @@ export function getWebviewContent(logData: any, repoList: { name: string, path: 
 					}
 					else {
 						vscode.postMessage({ command: 'info', text: 'Generating table HTML header.' });
-						tableHtml = \`<table class="git-log-table">
-							<thead>
-								<tr>
-									<th>Date</th>
-									<th>Author</th>
-									<th>Message</th>
-									<th>Commit ID</th>
-									<th>Files</th>
-								</tr>
-							</thead>
-							<tbody>\`;
+						tableHtml = '<table class="git-log-table">' +
+							'<thead>' +
+								'<tr>' +
+									'<th>Date</th>' +
+									'<th>Author</th>' +
+									'<th>Message</th>' +
+									'<th>Commit ID</th>' +
+									'<th>Files</th>' +
+								'</tr>' +
+							'</thead>' +
+							'<tbody>';
 						vscode.postMessage({ command: 'info', text: 'Generating table HTML data.' });
 						data.forEach(commit => {
-							tableHtml += \`
-								<tr>
-									<td title="\${commit.date}">\${commit.date}</td>
-									<td>\${commit.author_name}</td>
-									<td>\${commit.message}</td>
-									<td style="font-family:monospace;font-size:0.95em;">\${commit.hash}</td>
-									<td><button class="view-files-btn" onclick="showFiles('\${commit.hash}')">View Files</button><div id="files-\${commit.hash}" class="file-list"></div></td>
-								</tr>
-							\`;
+							tableHtml += '<tr>' +
+								'<td>' + formatLocalDate(commit.date) + '</td>' +
+								'<td>' + commit.author_name + '</td>' +
+								'<td>' + commit.message + '</td>' +
+								'<td style="font-family:monospace;font-size:0.95em;">' + commit.hash + '</td>' +
+								'<td><button class="view-files-btn" onclick="showFiles(&quot; + commit.hash + &quot;)">View Files</button><div id="files-' + commit.hash + '" class="file-list"></div></td>' +
+							'</tr>';
 						});
 						vscode.postMessage({ command: 'info', text: 'Generated table HTML data.' });
 						tableHtml += '</tbody></table>';
