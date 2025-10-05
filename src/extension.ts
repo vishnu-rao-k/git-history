@@ -159,7 +159,15 @@ export function activate(context: vscode.ExtensionContext) {
 			vscode.window.showInformationMessage('New panel.');
 		}
 		// Set the initial webview HTML content including the commit data and repo info.
-		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex);
+		// Pass the webview and extensionUri to getWebviewContent so it can resolve the script URI
+		const scriptPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'main.js');
+		const cssPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'css', 'style.css');
+		const scriptUri = currentPanel.webview.asWebviewUri(scriptPath);
+		const cssUri = currentPanel.webview.asWebviewUri(cssPath);
+		vscode.window.showInformationMessage(`Script URI: ${scriptUri}`);
+		vscode.window.showInformationMessage(`CSS URI: ${cssUri}`);
+		// Set the HTML content for the webview
+		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex, scriptUri, cssUri);
 
 		// Listen to messages sent from the webview for search functionality and repo switching.
 		currentPanel.webview.onDidReceiveMessage(async message => {
@@ -254,345 +262,59 @@ export function activate(context: vscode.ExtensionContext) {
 	context.subscriptions.push(disposable);
 }
 
-
 /**
  * Returns the HTML content for the webview.
  *
  * @param logData The Git log data to be rendered.
+ * @param webview The webview instance (for asWebviewUri)
+ * @param extensionUri The extension URI (for asWebviewUri)
  */
-export function getWebviewContent(logData: any, repoList: { name: string, path: string }[], repoIndex: number, branches: string[], branchIndex: number): string {
-	return `
-	<!DOCTYPE html>
-	<html lang="en">
-	<head>
-		<meta charset="UTF-8">	
-		<title>Git history</title>
-		<style>
-			:root {
-				color-scheme: light dark;
-			}
-			body {
-				font-family: var(--vscode-font-family, sans-serif);
-				color: var(--vscode-editor-foreground, #333);
-				background: var(--vscode-editor-background, #fff);
-				margin: 0;
-				padding: 0 0 24px 0;
-			}
-			h1 {
-				font-size: 1.5em;
-				margin: 18px 0 12px 0;
-				color: var(--vscode-editor-foreground, #333);
-				text-align: center;
-			}
-			#repoSection, #branchSection, #searchSection {
-				margin: 18px 0 0 0;
-				display: flex;
-				gap: 8px;
-				align-items: center;
-				justify-content: center;
-			}
-			#searchSection {
-				margin: 18px 0 18px 0;
-			}
-			#searchBox {
-				width: 60%;
-				padding: 8px 12px;
-				border-radius: 5px;
-				border: 1px solid var(--vscode-input-border, #ccc);
-				background: var(--vscode-input-background, #fff);
-				color: var(--vscode-input-foreground, #333);
-				font-size: 1em;
-				transition: border 0.2s;
-			}
-			#searchBox:focus {
-				outline: none;
-				border: 1.5px solid var(--vscode-focusBorder, #0078d4);
-			}
-			button {
-				background: var(--vscode-button-background, #0078d4);
-				color: var(--vscode-button-foreground, #fff);
-				border: none;
-				border-radius: 5px;
-				padding: 8px 18px;
-				font-size: 1em;
-				cursor: pointer;
-				transition: background 0.2s;
-			}
-			button:hover {
-				background: var(--vscode-button-hoverBackground, #005a9e);
-			}
-			select {
-				background: var(--vscode-input-background, #fff);
-				color: var(--vscode-input-foreground, #333);
-				border: 1px solid var(--vscode-input-border, #ccc);
-				border-radius: 4px;
-				padding: 6px 10px;
-				font-size: 1em;
-			}
-			select:focus {
-				outline: none;
-				border: 1.5px solid var(--vscode-focusBorder, #0078d4);
-			}
-			table.git-log-table {
-				width: 100%;
-				border-collapse: collapse;
-				margin-top: 10px;
-				background: var(--vscode-editor-background, #fff);
-				color: var(--vscode-editor-foreground, #333);
-				box-shadow: 0 2px 8px 0 rgba(0,0,0,0.04);
-			}
-			table.git-log-table th, table.git-log-table td {
-				border: 1px solid var(--vscode-editorWidget-border, #e1e1e1);
-				padding: 8px 10px;
-				text-align: left;
-				min-width: 80px;
-				max-width: 400px;
-				overflow: auto;
-			}
-			table.git-log-table th {
-				background: var(--vscode-editorWidget-background, #f3f3f3);
-				color: var(--vscode-editorWidget-foreground, #333);
-				font-weight: 600;
-				resize: horizontal;
-				cursor: col-resize;
-			}
-			table.git-log-table tr:nth-child(even) td {
-				background: var(--vscode-sideBar-background, #f8f8f8);
-			}
-			.file-list {
-				margin: 8px 0 8px 24px;
-				color: var(--vscode-descriptionForeground, #888);
-			}
-			.view-files-btn {
-				padding: 4px 12px;
-				font-size: 0.95em;
-				border-radius: 4px;
-				border: 1px solid var(--vscode-button-border, transparent);
-				background: var(--vscode-button-secondaryBackground, var(--vscode-button-background, #0078d4));
-				color: var(--vscode-button-secondaryForeground, var(--vscode-button-foreground, #fff));
-			}
-			.view-files-btn:hover {
-				background: var(--vscode-button-secondaryHoverBackground, var(--vscode-button-hoverBackground, #005a9e));
-			}
-			em, .file-list em {
-				color: var(--vscode-descriptionForeground, #888);
-			}
-		</style>
-	</head>
-	<body>
-		<h1>Git history</h1>
-		<div id="repoSection">
-			<label for="repoSelect">Repository:</label>
-			<select id="repoSelect"></select>
-			<span id="repoName" style="font-weight:bold;"></span>
-		</div>
-		<div id="branchSection">
-			<label for="branchSelect">Branch:</label>
-			<select id="branchSelect"></select>
-		</div>
-		<div id="searchSection">
-			<input type="text" id="searchBox" placeholder="Search by author or commit id or comment" />
-			<button onclick="search()">Search</button>
-		</div>
-		<div id="graph"></div>
-		<script>
-			const vscode = acquireVsCodeApi();
-			vscode.postMessage({ command: 'info', text: 'Inside the script starting' });
-			
-			// const previousState = vscode.getState();
-			// vscode.postMessage({ command: 'info', text: 'After runing getState.' });
-			
-			let commits, repoList, repoIndex, branches, branchIndex, tableHtml;
-
-			// If previous state exists, use it to restore variables
-			// if (previousState) {
-			// 	vscode.postMessage({ command: 'info', text: 'Previous state found.' });
-			// 	commits = previousState.commits ? previousState.commits : ${JSON.stringify(logData.all)};
-			// 	repoList = previousState.repoList ? previousState.repoList : ${JSON.stringify(repoList)};	
-			// 	repoIndex = previousState.repoIndex ? previousState.repoIndex : ${repoIndex};
-			// 	branches = previousState.branches ? previousState.branches : ${JSON.stringify(branches)};
-			// 	branchIndex = previousState.branchIndex ? previousState.branchIndex : ${branchIndex};
-			// 	tableHtml = previousState.tableHtml ? previousState.tableHtml : '';
-			// 	vscode.postMessage({ command: 'info', text: 'Restored variables from previous state.' });
-			// 	vscode.postMessage({ command: 'info', text: 'branchIndex: ' + branchIndex + ' repoIndex: ' + repoIndex + ' commits: ' + commits.length });
-			// }
-			// else {
-			// 	vscode.postMessage({ command: 'info', text: 'No previous state found.' });
-			// 	commits = ${JSON.stringify(logData.all)};
-			// 	repoList = ${JSON.stringify(repoList)};
-			// 	repoIndex = ${repoIndex};
-			// 	branches = ${JSON.stringify(branches)};
-			// 	branchIndex = ${branchIndex};
-			// 	vscode.setState({ commits, repoList, repoIndex, branches, branchIndex });
-			// }
-				
-			commits = ${JSON.stringify(logData.all)};
-			repoList = ${JSON.stringify(repoList)};
-			repoIndex = ${repoIndex};
-			branches = ${JSON.stringify(branches)};
-			branchIndex = ${branchIndex};
-
-			vscode.postMessage({ command: 'info', text: 'After setting variables.' });
-
-			function populateRepoSelector() {
-				const select = document.getElementById('repoSelect');
-				const nameSpan = document.getElementById('repoName');
-				if (!select || !nameSpan) return;
-				select.options.length = 0;
-				repoList.forEach(function(repo, idx) {
-					const opt = document.createElement('option');
-					opt.value = idx;
-					opt.textContent = repo.name;
-					if (idx === repoIndex) opt.selected = true;
-					select.appendChild(opt);
-				});
-				nameSpan.textContent = repoList[repoIndex].name;
-				select.onchange = function() {
-					vscode.postMessage({ command: 'selectRepo', repoIndex: parseInt(select.value, 10) });
-				};
-			}
-
-			function populateBranchSelector() {
-				const select = document.getElementById('branchSelect');
-				if (!select) return;
-				select.options.length = 0;
-				branches.forEach(function(branch, idx) {
-					const opt = document.createElement('option');
-					opt.value = idx;
-					opt.textContent = branch;
-					if (idx === branchIndex) opt.selected = true;
-					select.appendChild(opt);
-				});
-				select.onchange = function() {
-					branchIndex = parseInt(select.value, 10);
-					vscode.postMessage({ command: 'selectBranch', repoIndex: repoIndex, branchIndex });
-					vscode.postMessage({ command: 'info', text: 'Selected branch index: ' + branchIndex });
-				};
-			}
-
-			// Helper to format date string to local time
-			function formatLocalDate(dateStr) {
-				// Try to parse as ISO, fallback to original if fails
-				const d = new Date(dateStr);
-				if (!isNaN(d.getTime())) {
-					return d.toLocaleString();
-				}
-				return dateStr;
-			}
-
-			function renderGraph(data) {
-				vscode.postMessage({ command: 'info', text: 'Rendering graph with ' + data.length + ' commits.' });
-				if (!tableHtml) {
-					vscode.postMessage({ command: 'info', text: 'No previous tableHtml, rendering new table.' });
-					const graphDiv = document.getElementById('graph');
-					if (!data.length) {
-						vscode.postMessage({ command: 'info', text: 'No commits found.' });
-						tableHtml = '<em>No commits found.</em>';
-					}
-					else {
-						vscode.postMessage({ command: 'info', text: 'Generating table HTML header.' });
-						tableHtml = '<table class="git-log-table">' +
-							'<thead>' +
-								'<tr>' +
-									'<th>Date</th>' +
-									'<th>Author</th>' +
-									'<th>Message</th>' +
-									'<th>Commit ID</th>' +
-									'<th>Files</th>' +
-								'</tr>' +
-							'</thead>' +
-							'<tbody>';
-						vscode.postMessage({ command: 'info', text: 'Generating table HTML data.' });
-						data.forEach(commit => {
-							tableHtml += '<tr>' +
-								'<td>' + formatLocalDate(commit.date) + '</td>' +
-								'<td>' + commit.author_name + '</td>' +
-								'<td>' + commit.message + '</td>' +
-								'<td style="font-family:monospace;font-size:0.95em;">' + commit.hash + '</td>' +
-								'<td><button class="view-files-btn" onclick="showFiles(&quot; + commit.hash + &quot;)">View Files</button><div id="files-' + commit.hash + '" class="file-list"></div></td>' +
-							'</tr>';
-						});
-						vscode.postMessage({ command: 'info', text: 'Generated table HTML data.' });
-						tableHtml += '</tbody></table>';
-						vscode.postMessage({ command: 'info', text: 'Generated complete table.' });
-						vscode.postMessage({ command: 'info', text: 'Table HTML generated. Size - ' + tableHtml.length });
-					}
-					vscode.postMessage({ command: 'info', text: 'Table HTML generated. Size - ' + tableHtml.length });
-					graphDiv.innerHTML = tableHtml;
-				}
-				else {
-					document.getElementById('graph').innerHTML = tableHtml;
-				}
-				vscode.postMessage({ command: 'info', text: 'Rendering graph completed.' });
-			}
-			function search() {
-				const text = document.getElementById('searchBox').value;
-				vscode.postMessage({ command: 'search', text });
-			}
-			window.showFiles = function(commitId) {
-				vscode.postMessage({ command: 'showFiles', commitId });
-			}
-			window.addEventListener('message', function(event) {
-				const message = event.data;
-				if(message.command === 'updateGraph') {
-					commits = message.data;
-					let clearSearch = false;
-					if (message.repoList !== undefined && message.repoList.length > 0) {
-						repoList = message.repoList;
-						repoIndex = message.repoIndex !== undefined ? message.repoIndex : 0;
-						populateRepoSelector();
-						vscode.postMessage({ command: 'info', text: 'Updated repo list in webview.' });
-						clearSearch = true;
-					}
-					if (message.branches !== undefined && message.branches.length > 0) {
-						branches = message.branches;
-						branchIndex = message.branchIndex;
-						populateBranchSelector();
-						vscode.postMessage({ command: 'info', text: 'Updated branches in webview.' });
-						clearSearch = true;
-					}
-					// Clear search box if repo or branch changed
-					if (clearSearch || message.branchIndex !== undefined) {
-						const searchBox = document.getElementById('searchBox');
-						if (searchBox) searchBox.value = '';
-					}
-					// Re-render the graph with the new data
-					tableHtml = '';
-					vscode.postMessage({ command: 'info', text: 'Updating commits table in webview.' });
-					renderGraph(commits);
-					// vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml });
-				} else if(message.command === 'showFiles') {
-					const filesDiv = document.getElementById('files-' + message.commitId);
-					if (filesDiv) {
-						if (message.error) {
-							filesDiv.innerHTML = '<span style="color:red;">' + message.error + '</span>';
-						} else if (message.files.length === 0) {
-							filesDiv.innerHTML = '<em>No files changed.</em>';
-						} else {
-							filesDiv.innerHTML = '<ul>' + message.files.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
-						}
-						// vscode.setState({ commits, repoList, repoIndex, branches, branchIndex, tableHtml: document.getElementById('graph').innerHTML });
-					}
-				}
-			});
-			document.addEventListener('DOMContentLoaded', function() {
-				vscode.postMessage({ command: 'info', text: 'Inside the DOMContentLoaded' });
-				populateRepoSelector();
-				populateBranchSelector();
-				const searchBox = document.getElementById('searchBox');
-				if (searchBox) {
-					searchBox.addEventListener('keydown', function(e) {
-						if (e.key === 'Enter') {
-							search();
-						}
-					});
-				}
-				renderGraph(commits);
-			});
-		</script>
-	</body>
-	</html>
-	`;
+export function getWebviewContent(
+       logData: any,
+       repoList: { name: string, path: string }[],
+       repoIndex: number,
+       branches: string[],
+       branchIndex: number,
+	   scriptUri: vscode.Uri,
+	   cssUri: vscode.Uri
+): string {
+       return `
+       <!DOCTYPE html>
+       <html lang="en">
+       <head>
+	       <meta charset="UTF-8">
+	       <title>Git history</title>
+	       <link rel="stylesheet" type="text/css" href="${cssUri}">
+       </head>
+       <body>
+	       <h1>Git history</h1>
+	       <div id="repoSection">
+		       <label for="repoSelect">Repository:</label>
+		       <select id="repoSelect"></select>
+		       <span id="repoName" style="font-weight:bold;"></span>
+	       </div>
+	       <div id="branchSection">
+		       <label for="branchSelect">Branch:</label>
+		       <select id="branchSelect"></select>
+	       </div>
+	       <div id="searchSection">
+		       <input type="text" id="searchBox" placeholder="Search by author or commit id or comment" />
+		       <button id="searchBtn">Search</button>
+	       </div>
+	       <div id="graph"></div>
+	       <script>
+		       window.gitHistoryInitialState = {
+			       initialCommits: ${JSON.stringify(logData.all)},
+			       initialRepoList: ${JSON.stringify(repoList)},
+			       initialRepoIndex: ${repoIndex},
+			       initialBranches: ${JSON.stringify(branches)},
+			       initialBranchIndex: ${branchIndex}
+		       };
+	       </script>
+	       <script src="${scriptUri}"></script>
+       </body>
+       </html>
+       `;
 }
 
 

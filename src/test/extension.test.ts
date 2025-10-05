@@ -16,7 +16,12 @@ suite('Extension Test Suite', () => {
 		const repoList = [{ name: 'my-repo', path: '/path/to/my-repo' }];
 		const branches = ['main'];
 
-		const html = getWebviewContent(logData, repoList, 0, branches, 0);
+		// Mock webview and extensionUri for getWebviewContent
+		const mockExtensionUri = vscode.Uri.file(__dirname + '/../../');
+		const scriptUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/src/main.js' });
+		const cssUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/css/styles.css' });
+		
+		const html = getWebviewContent(logData, repoList, 0, branches, 0, scriptUri, cssUri);
 		console.log(html);
 
 		assert.ok(html.includes('<h1>Git history</h1>'), 'Should render the main title');
@@ -25,8 +30,14 @@ suite('Extension Test Suite', () => {
 		// assert.ok(html.includes('<option value="0" selected>main</option>'), 'Should render the current branch');
 	});
 
-	test('getWebviewContent should show "No commits" message for empty log', () => {
-		const html = getWebviewContent({ all: [] }, [], -1, [], -1);
+	test('getWebviewContent should show "No commits" message for empty log', () => {		
+		// Mock webview and extensionUri for getWebviewContent
+		const mockExtensionUri = vscode.Uri.file(__dirname + '/../../');
+		const scriptUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/src/main.js' });
+		const cssUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/css/styles.css' });
+		
+
+		const html = getWebviewContent({ all: [] }, [], -1, [], -1, scriptUri, cssUri);
 		assert.ok(html.includes('<em>No commits found.</em>'), 'Should show no commits message');
 	});
 
