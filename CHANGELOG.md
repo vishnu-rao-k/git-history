@@ -1,3 +1,9 @@
+# 0.1.0 October 2025
+
+## Fixed
+
+- Fixed minor UI issues in webview panel.
+
 # 0.0.9 October 2025
 
 ## Added

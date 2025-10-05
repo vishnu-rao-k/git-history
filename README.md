@@ -22,3 +22,7 @@ This extension contributes the following settings:
 
 ### See the [CHANGELOG](./CHANGELOG.md) for a complete list of updates.
 
+---
+
+Current version: **0.1.0**
+
