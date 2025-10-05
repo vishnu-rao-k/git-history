@@ -163,8 +163,8 @@ export function activate(context: vscode.ExtensionContext) {
 		}
 		// Set the initial webview HTML content including the commit data and repo info.
 		// Pass the webview and extensionUri to getWebviewContent so it can resolve the script URI
-		const scriptPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'main.js');
-		const cssPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'css', 'style.css');
+		const scriptPath = vscode.Uri.joinPath(context.extensionUri, 'dist', 'main.js');
+		const cssPath = vscode.Uri.joinPath(context.extensionUri, 'dist', 'css', 'style.css');
 		const scriptUri = currentPanel.webview.asWebviewUri(scriptPath);
 		const cssUri = currentPanel.webview.asWebviewUri(cssPath);
 		// Set the HTML content for the webview
