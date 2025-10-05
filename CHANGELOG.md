@@ -1,3 +1,13 @@
+# 0.1.1 October 2025
+
+## Fixed
+
+- Resolved issues with loading Git history caused by missing extension files.
+
+## Changed
+
+- Optimized the build process to improve extension installation speed and reduce loading times.
+
 # 0.1.0 October 2025
 
 ## Fixed
