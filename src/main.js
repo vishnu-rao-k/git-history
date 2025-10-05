@@ -1,7 +1,7 @@
 // This script is loaded in the webview for Git history
 const vscode = acquireVsCodeApi();
 
-if (gitHistoryInitialState === undefined || gitHistoryInitialState === null) {
+if (gitHistoryInitialState === undefined) {
     throw new Error('Missing initial state for git history');
 };
 
@@ -55,7 +55,7 @@ function populateBranchSelector() {
     select.onchange = function () {
         branchIndex = parseInt(select.value, 10);
         vscode.postMessage({ command: 'selectBranch', repoIndex: repoIndex, branchIndex });
-        vscode.postMessage({ command: 'info', text: 'Selected branch index: ' + branchIndex });
+        vscode.postMessage({ command: 'info', text: 'Git History: Selected branch index: ' + branchIndex });
     };
 }
 
@@ -147,7 +147,6 @@ window.addEventListener('message', function (event) {
             }
         }
     }
-    // Ensure tableHtml is always a string
 });
 
 document.addEventListener('DOMContentLoaded', function () {

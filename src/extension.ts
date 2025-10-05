@@ -148,15 +148,18 @@ export function activate(context: vscode.ExtensionContext) {
 		if (currentPanel) {
 			currentPanel.dispose();
 			currentPanel = undefined;
+			if (DEBUG_MODE) {
+				vscode.window.showInformationMessage('Previous panel is disposed.');
+			}
 		}
 		currentPanel = vscode.window.createWebviewPanel(
 			'gitHistory',
 			'Git history',
 			columnToShowIn || vscode.ViewColumn.One,
-			{ enableScripts: true, retainContextWhenHidden: true}
+			{ enableScripts: true, retainContextWhenHidden: true }
 		);
 		if (DEBUG_MODE) {
-			vscode.window.showInformationMessage('New panel.');
+			vscode.window.showInformationMessage('New panel is created.');
 		}
 		// Set the initial webview HTML content including the commit data and repo info.
 		// Pass the webview and extensionUri to getWebviewContent so it can resolve the script URI
@@ -164,8 +167,6 @@ export function activate(context: vscode.ExtensionContext) {
 		const cssPath = vscode.Uri.joinPath(context.extensionUri, 'src', 'css', 'style.css');
 		const scriptUri = currentPanel.webview.asWebviewUri(scriptPath);
 		const cssUri = currentPanel.webview.asWebviewUri(cssPath);
-		vscode.window.showInformationMessage(`Script URI: ${scriptUri}`);
-		vscode.window.showInformationMessage(`CSS URI: ${cssUri}`);
 		// Set the HTML content for the webview
 		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex, scriptUri, cssUri);
 
@@ -209,12 +210,12 @@ export function activate(context: vscode.ExtensionContext) {
 					branchIndex = branches.indexOf(currentBranch);
 					if (currentPanel) {
 						// Print info message
-						vscode.window.showInformationMessage(`Switching to repo: ${repoName}`);
+						vscode.window.showInformationMessage(`Git History: Switching to repo: ${repoName}`);
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex });
 					}
 				} catch (error) {
 					if (currentPanel) {
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Failed to get repository history.' });
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Git History: Failed to get repository history.' });
 					}
 				}
 			} else if (message.command === 'selectBranch') {
@@ -234,14 +235,14 @@ export function activate(context: vscode.ExtensionContext) {
 					const lengthOfLog = logData.all.length;
 					if (currentPanel) {
 						// Print info message
-						vscode.window.showInformationMessage(`Switching to branch: ${currentBranch} in repo: ${repoName}`);
+						vscode.window.showInformationMessage(`Git History: Switching to branch: ${currentBranch} in repo: ${repoName}`);
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, branchIndex: message.branchIndex });
 					}
 				} catch (error) {
 					if (currentPanel) {
-						vscode.window.showErrorMessage(`Failed to get history for branch: ${currentBranch} in repo: ${repoName}`);
+						vscode.window.showErrorMessage(`Git History: Failed to get history for branch: ${currentBranch} in repo: ${repoName}`);
 						// Send empty data with error message to webview
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], error: 'Failed to get repository history for the selected branch.' });
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], error: 'Git History: Failed to get repository history for the selected branch.' });
 					}
 				}
 			} else if (message.command === 'info') {
@@ -270,15 +271,15 @@ export function activate(context: vscode.ExtensionContext) {
  * @param extensionUri The extension URI (for asWebviewUri)
  */
 export function getWebviewContent(
-       logData: any,
-       repoList: { name: string, path: string }[],
-       repoIndex: number,
-       branches: string[],
-       branchIndex: number,
-	   scriptUri: vscode.Uri,
-	   cssUri: vscode.Uri
+	logData: any,
+	repoList: { name: string, path: string }[],
+	repoIndex: number,
+	branches: string[],
+	branchIndex: number,
+	scriptUri: vscode.Uri,
+	cssUri: vscode.Uri
 ): string {
-       return `
+	return `
        <!DOCTYPE html>
        <html lang="en">
        <head>
