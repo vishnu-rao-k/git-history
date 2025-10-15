@@ -1,3 +1,9 @@
+# 0.1.2 October 2025
+
+## Added
+
+- Updated the git history table in webview panel to use dynamic rendering and improved its styling for better readability.
+
 # 0.1.1 October 2025
 
 ## Fixed

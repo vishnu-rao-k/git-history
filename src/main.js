@@ -16,6 +16,10 @@ let branches = gitHistoryInitialState.initialBranches;
 /** @type {number} */
 let branchIndex = gitHistoryInitialState.initialBranchIndex;
 let tableHtml;
+// pagination / virtualization state
+const PAGE_SIZE = 200;
+let renderIndex = 0; // next index to render
+let isAppending = false;
 
 function populateRepoSelector() {
     const select = document.getElementById('repoSelect');
@@ -67,39 +71,104 @@ function formatLocalDate(dateStr) {
     return dateStr;
 }
 
-function renderGraph(data) {
-    if (!tableHtml) {
-        const graphDiv = document.getElementById('graph');
-        if (!data.length) {
-            tableHtml = '<em>No commits found.</em>';
-        } else {
-            tableHtml = '<table class="git-log-table">' +
-                '<thead>' +
-                '<tr>' +
-                '<th>Date</th>' +
-                '<th>Author</th>' +
-                '<th>Message</th>' +
-                '<th>Commit ID</th>' +
-                '<th>Files</th>' +
-                '</tr>' +
-                '</thead>' +
-                '<tbody>';
-            data.forEach(commit => {
-                tableHtml += '<tr>' +
-                    '<td>' + formatLocalDate(commit.date) + '</td>' +
-                    '<td>' + commit.author_name + '</td>' +
-                    '<td>' + commit.message + '</td>' +
-                    '<td style="font-family:monospace;font-size:0.95em;">' + commit.hash + '</td>' +
-                    '<td><button class="view-files-btn" onclick="showFiles(\'' + commit.hash + '\')">View Files</button><div id="files-' + commit.hash + '" class="file-list"></div></td>' +
-                    '</tr>';
-            });
-            tableHtml += '</tbody></table>';
-        }
-        graphDiv.innerHTML = tableHtml;
-    } else {
-        document.getElementById('graph').innerHTML = tableHtml;
-    }
+function createTableHeader() {
+    return '<table class="git-log-table">' +
+        '<thead>' +
+        '<tr>' +
+        '<th>Date</th>' +
+        '<th>Author</th>' +
+        '<th>Message</th>' +
+        '<th>Commit ID</th>' +
+        '<th>Files</th>' +
+        '</tr>' +
+        '</thead>' +
+        '<tbody>';
 }
+
+function createRow(commit) {
+    return '<tr>' +
+        '<td>' + formatLocalDate(commit.date) + '</td>' +
+        '<td>' + commit.author_name + '</td>' +
+        '<td>' + commit.message + '</td>' +
+        '<td style="font-family:monospace;font-size:0.95em;">' + commit.hash + '</td>' +
+        '<td><button class="view-files-btn" onclick="showFiles(\'' + commit.hash + '\')">View Files</button><div id="files-' + commit.hash + '" class="file-list"></div></td>' +
+        '</tr>';
+}
+
+function appendRows(data, fromIndex, count) {
+    const tbody = document.querySelector('.git-log-table tbody');
+    if (!tbody) {
+        return 0;
+    }
+    const end = Math.min(fromIndex + count, data.length);
+    let appended = 0;
+    for (let i = fromIndex; i < end; i++) {
+        const commit = data[i];
+        const trHtml = createRow(commit);
+        const temp = document.createElement('template');
+        temp.innerHTML = trHtml.trim();
+        tbody.appendChild(temp.content.firstChild);
+        appended++;
+    }
+    return appended;
+}
+
+function attachScrollHandler(data) {
+    const graphDiv = document.getElementById('graph');
+    if (!graphDiv) {
+        return;
+    }
+    // Make graph scrollable
+    // Updated to use CSS for better control
+    // graphDiv.style.maxHeight = '80vh';
+    // graphDiv.style.overflow = 'auto';
+
+    if (graphDiv._ghScrollHandler) {
+        graphDiv.removeEventListener('scroll', graphDiv._ghScrollHandler);
+        graphDiv._ghScrollHandler = null;
+    }
+
+    graphDiv._ghScrollHandler = function () {
+        if (isAppending) {
+            return;
+        }
+        const threshold = 150; // px
+        if (graphDiv.scrollHeight - graphDiv.scrollTop - graphDiv.clientHeight < threshold) {
+            isAppending = true;
+            setTimeout(() => {
+                const appended = appendRows(data, renderIndex, PAGE_SIZE);
+                renderIndex += appended;
+                isAppending = false;
+                if (renderIndex >= data.length && graphDiv._ghScrollHandler) {
+                    graphDiv.removeEventListener('scroll', graphDiv._ghScrollHandler);
+                    graphDiv._ghScrollHandler = null;
+                }
+            }, 50);
+        }
+    };
+
+    graphDiv.addEventListener('scroll', graphDiv._ghScrollHandler);
+}
+
+function resetVirtualRender(data) {
+    renderIndex = 0;
+    tableHtml = '';
+    const graphDiv = document.getElementById('graph');
+    if (!data || data.length === 0) {
+        graphDiv.innerHTML = '<em>No commits found.</em>';
+        return;
+    }
+    graphDiv.innerHTML = createTableHeader() + '</tbody></table>';
+    const appended = appendRows(data, renderIndex, PAGE_SIZE);
+    renderIndex += appended;
+    attachScrollHandler(data);
+}
+
+const renderGraph = (data) => {
+    // Reset and render first page
+    resetVirtualRender(data);
+};
+ 
 
 function search() {
     const text = document.getElementById('searchBox').value;
@@ -108,7 +177,7 @@ function search() {
 
 window.showFiles = function (commitId) {
     vscode.postMessage({ command: 'showFiles', commitId });
-}
+};
 
 window.addEventListener('message', function (event) {
     const message = event.data;
@@ -164,5 +233,5 @@ document.addEventListener('DOMContentLoaded', function () {
     if (searchBtn) {
         searchBtn.addEventListener('click', search);
     }
-    renderGraph(commits);
+        renderGraph(commits);
 });

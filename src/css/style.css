@@ -47,6 +47,12 @@ h1 {
     border: 1.5px solid var(--vscode-focusBorder, #0078d4);
 }
 
+#graph {
+    margin: 0 auto;
+    max-height: 80vh;
+    overflow: auto;
+}
+
 button {
     background: var(--vscode-button-background, #0078d4);
     color: var(--vscode-button-foreground, #fff);
@@ -83,6 +89,9 @@ table.git-log-table {
     background: var(--vscode-editor-background, #fff);
     color: var(--vscode-editor-foreground, #333);
     box-shadow: 0 2px 8px 0 rgba(0, 0, 0, 0.04);
+    thead {
+        position: sticky;
+        top: 0;}
 }
 
 table.git-log-table th,
