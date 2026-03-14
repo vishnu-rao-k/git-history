@@ -3,6 +3,14 @@
 import * as vscode from 'vscode';
 import simpleGit, { SimpleGit } from 'simple-git';
 
+// Function to escape HTML special characters to prevent XSS in the webview
+function escapeHtml(text: string): string {
+	return text
+		.replace(/&/g, '&amp;')
+		.replace(/</g, '&lt;')
+		.replace(/>/g, '&gt;');
+}
+
 // Function to get list of git repositories in the workspace
 // (Not currently used, but could be useful for future enhancements)
 async function getGitRepositories(): Promise<string[]> {
@@ -305,10 +313,10 @@ export function getWebviewContent(
 	       <div id="graph"></div>
 	       <script>
 		       window.gitHistoryInitialState = {
-			       initialCommits: ${JSON.stringify(logData.all)},
-			       initialRepoList: ${JSON.stringify(repoList)},
+			       initialCommits: ${escapeHtml(JSON.stringify(logData.all))},
+			       initialRepoList: ${escapeHtml(JSON.stringify(repoList))},
 			       initialRepoIndex: ${repoIndex},
-			       initialBranches: ${JSON.stringify(branches)},
+			       initialBranches: ${escapeHtml(JSON.stringify(branches))},
 			       initialBranchIndex: ${branchIndex}
 		       };
 	       </script>

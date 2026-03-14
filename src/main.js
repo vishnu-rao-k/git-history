@@ -21,6 +21,16 @@ const PAGE_SIZE = 200;
 let renderIndex = 0; // next index to render
 let isAppending = false;
 
+// Utility function to escape HTML special characters to prevent XSS
+function escapeHtml(text) {
+    return text
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/'/g, '&#039;')
+        .replace(/"/g, '&quot;');
+}
+
 function populateRepoSelector() {
     const select = document.getElementById('repoSelect');
     const nameSpan = document.getElementById('repoName');
@@ -50,7 +60,7 @@ function populateBranchSelector() {
     branches.forEach(function (branch, idx) {
         const opt = document.createElement('option');
         opt.value = idx;
-        opt.textContent = branch;
+        opt.innerHTML = branch;
         if (idx === branchIndex) {
             opt.selected = true;
         }
@@ -88,10 +98,10 @@ function createTableHeader() {
 function createRow(commit) {
     return '<tr>' +
         '<td>' + formatLocalDate(commit.date) + '</td>' +
-        '<td>' + commit.author_name + '</td>' +
-        '<td>' + commit.message + '</td>' +
-        '<td style="font-family:monospace;font-size:0.95em;">' + commit.hash + '</td>' +
-        '<td><button class="view-files-btn" onclick="showFiles(\'' + commit.hash + '\')">View Files</button><div id="files-' + commit.hash + '" class="file-list"></div></td>' +
+        '<td>' + escapeHtml(commit.author_name) + '</td>' +
+        '<td style="white-space: pre-line;">' + escapeHtml(commit.message) + (commit.body ? '\n\n' + escapeHtml(commit.body) : '') + '</td>' +
+        '<td style="font-family:monospace;font-size:0.95em;"><code>' + escapeHtml(commit.hash) + '</code></td>' +
+        '<td><button class="view-files-btn" onclick="showFiles(\'' + escapeHtml(commit.hash) + '\')">View Files</button><div id="files-' + escapeHtml(commit.hash) + '" class="file-list"></div></td>' +
         '</tr>';
 }
 
@@ -105,9 +115,7 @@ function appendRows(data, fromIndex, count) {
     for (let i = fromIndex; i < end; i++) {
         const commit = data[i];
         const trHtml = createRow(commit);
-        const temp = document.createElement('template');
-        temp.innerHTML = trHtml.trim();
-        tbody.appendChild(temp.content.firstChild);
+        tbody.insertAdjacentHTML('beforeend', trHtml);
         appended++;
     }
     return appended;
