@@ -1,3 +1,13 @@
+# 0.1.3 March 2026
+
+## Added
+
+- Added a feature to show body of the commit also in the message if it is present
+
+## Fixed
+
+- Enhanced XSS protection by adding HTML escaping utility in webview and updating commit display
+
 # 0.1.2 October 2025
 
 ## Added
