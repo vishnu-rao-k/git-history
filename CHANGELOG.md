@@ -1,3 +1,9 @@
+# 0.1.4 April 2026
+
+## Added
+
+- Added performance optimizations for loading and rendering commit history, improving responsiveness for large repositories.
+
 # 0.1.3 March 2026
 
 ## Added
