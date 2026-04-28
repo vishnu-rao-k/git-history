@@ -176,19 +176,17 @@ export function activate(context: vscode.ExtensionContext) {
 		const scriptUri = currentPanel.webview.asWebviewUri(scriptPath);
 		const cssUri = currentPanel.webview.asWebviewUri(cssPath);
 		// Set the HTML content for the webview
-		currentPanel.webview.html = getWebviewContent(logData, repoList, repoIndex, branches, branchIndex, scriptUri, cssUri);
+		currentPanel.webview.html = getWebviewContent(scriptUri, cssUri);
 
 		// Listen to messages sent from the webview for search functionality and repo switching.
 		currentPanel.webview.onDidReceiveMessage(async message => {
-			if (message.command === 'search') {
-				const searchQuery = message.text;
-				const filtered = logData.all.filter((commit: any) =>
-					commit.author_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					commit.message.toLowerCase().includes(searchQuery.toLowerCase()) ||
-					commit.hash.toLowerCase().includes(searchQuery.toLowerCase())
-				);
+			if (message.command === 'initialize') {
+				// This command is sent from the webview when it is ready to receive data
+				// Send the initial data to the webview
 				if (currentPanel) {
-					currentPanel.webview.postMessage({ command: 'updateGraph', data: filtered });
+					currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex });
+					// Reset logData to free memory, since the webview has received the data
+					logData = { all: [] };
 				}
 			} else if (message.command === 'showFiles') {
 				// Get files changed in the commit
@@ -225,6 +223,8 @@ export function activate(context: vscode.ExtensionContext) {
 					if (currentPanel) {
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Git History: Failed to get repository history.' });
 					}
+				} finally {
+					logData = { all: [] };
 				}
 			} else if (message.command === 'selectBranch') {
 				// User selected a branch, update git and reload log
@@ -252,6 +252,8 @@ export function activate(context: vscode.ExtensionContext) {
 						// Send empty data with error message to webview
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], error: 'Git History: Failed to get repository history for the selected branch.' });
 					}
+				} finally {
+					logData = { all: [] };
 				}
 			} else if (message.command === 'info') {
 				// Show the message
@@ -279,11 +281,6 @@ export function activate(context: vscode.ExtensionContext) {
  * @param extensionUri The extension URI (for asWebviewUri)
  */
 export function getWebviewContent(
-	logData: any,
-	repoList: { name: string, path: string }[],
-	repoIndex: number,
-	branches: string[],
-	branchIndex: number,
 	scriptUri: vscode.Uri,
 	cssUri: vscode.Uri
 ): string {
@@ -308,18 +305,9 @@ export function getWebviewContent(
 	       </div>
 	       <div id="searchSection">
 		       <input type="text" id="searchBox" placeholder="Search by author or commit id or comment" />
-		       <button id="searchBtn">Search</button>
+		       <button onclick="search()">Search</button>
 	       </div>
 	       <div id="graph"></div>
-	       <script>
-		       window.gitHistoryInitialState = {
-			       initialCommits: ${escapeHtml(JSON.stringify(logData.all))},
-			       initialRepoList: ${escapeHtml(JSON.stringify(repoList))},
-			       initialRepoIndex: ${repoIndex},
-			       initialBranches: ${escapeHtml(JSON.stringify(branches))},
-			       initialBranchIndex: ${branchIndex}
-		       };
-	       </script>
 	       <script src="${scriptUri}"></script>
        </body>
        </html>

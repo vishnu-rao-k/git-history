@@ -21,7 +21,7 @@ suite('Extension Test Suite', () => {
 		const scriptUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/src/main.js' });
 		const cssUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/css/styles.css' });
 		
-		const html = getWebviewContent(logData, repoList, 0, branches, 0, scriptUri, cssUri);
+		const html = getWebviewContent(scriptUri, cssUri);
 		console.log(html);
 
 		assert.ok(html.includes('<h1>Git history</h1>'), 'Should render the main title');
@@ -37,7 +37,7 @@ suite('Extension Test Suite', () => {
 		const cssUri = mockExtensionUri.with({ path: mockExtensionUri.path + '/css/styles.css' });
 		
 
-		const html = getWebviewContent({ all: [] }, [], -1, [], -1, scriptUri, cssUri);
+		const html = getWebviewContent(scriptUri, cssUri);
 		assert.ok(html.includes('<em>No commits found.</em>'), 'Should show no commits message');
 	});
 

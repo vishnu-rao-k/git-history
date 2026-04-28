@@ -1,25 +1,24 @@
 // This script is loaded in the webview for Git history
 const vscode = acquireVsCodeApi();
 
-if (gitHistoryInitialState === undefined) {
-    throw new Error('Missing initial state for git history');
-};
-
 /** @type {Array<Object>} */
-let commits = gitHistoryInitialState.initialCommits;
+let commits;
 /** @type {Array<{ name: string, path: string }>} */
-let repoList = gitHistoryInitialState.initialRepoList;
+let repoList;
 /** @type {number} */
-let repoIndex = gitHistoryInitialState.initialRepoIndex;
+let repoIndex;
 /** @type {Array<string>} */
-let branches = gitHistoryInitialState.initialBranches;
+let branches;
 /** @type {number} */
-let branchIndex = gitHistoryInitialState.initialBranchIndex;
+let branchIndex;
 let tableHtml;
 // pagination / virtualization state
 const PAGE_SIZE = 200;
 let renderIndex = 0; // next index to render
 let isAppending = false;
+
+// Initial state from VS Code extension
+vscode.postMessage({ command: 'initialize' });
 
 // Utility function to escape HTML special characters to prevent XSS
 function escapeHtml(text) {
@@ -42,7 +41,7 @@ function populateRepoSelector() {
         const opt = document.createElement('option');
         opt.value = idx;
         opt.textContent = repo.name;
-        if (idx === repoIndex) {opt.selected = true;}
+        if (idx === repoIndex) { opt.selected = true; }
         select.appendChild(opt);
     });
     nameSpan.textContent = repoList[repoIndex].name;
@@ -176,11 +175,20 @@ const renderGraph = (data) => {
     // Reset and render first page
     resetVirtualRender(data);
 };
- 
+
 
 function search() {
-    const text = document.getElementById('searchBox').value;
-    vscode.postMessage({ command: 'search', text });
+    const text = document.getElementById('searchBox').value.trim().toLowerCase();
+    if (text) {
+        let filtered = commits.filter(function (commit) {
+            return commit.author_name.toLowerCase().includes(text) ||
+                commit.message.toLowerCase().includes(text) ||
+                (commit.body && commit.body.toLowerCase().includes(text));
+        });
+        resetVirtualRender(filtered);
+        return;
+    }
+    resetVirtualRender(commits);
 }
 
 window.showFiles = function (commitId) {
@@ -191,24 +199,20 @@ window.addEventListener('message', function (event) {
     const message = event.data;
     if (message.command === 'updateGraph') {
         commits = message.data;
-        let clearSearch = false;
         if (message.repoList !== undefined && message.repoList.length > 0) {
             repoList = message.repoList;
             repoIndex = message.repoIndex !== undefined ? message.repoIndex : 0;
             populateRepoSelector();
-            clearSearch = true;
         }
         if (message.branches !== undefined && message.branches.length > 0) {
             branches = message.branches;
             branchIndex = message.branchIndex;
             populateBranchSelector();
-            clearSearch = true;
         }
-        if (clearSearch || message.branchIndex !== undefined) {
-            const searchBox = document.getElementById('searchBox');
-            if (searchBox) {
-                searchBox.value = '';
-            }
+        // Clear search box if repo/branch changed to avoid confusion
+        const searchBox = document.getElementById('searchBox');
+        if (searchBox) {
+            searchBox.value = '';
         }
         tableHtml = '';
         renderGraph(commits);
@@ -227,8 +231,6 @@ window.addEventListener('message', function (event) {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
-    populateRepoSelector();
-    populateBranchSelector();
     const searchBox = document.getElementById('searchBox');
     if (searchBox) {
         searchBox.addEventListener('keydown', function (e) {
@@ -237,9 +239,4 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-    const searchBtn = document.getElementById('searchBtn');
-    if (searchBtn) {
-        searchBtn.addEventListener('click', search);
-    }
-        renderGraph(commits);
 });
