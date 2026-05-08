@@ -3,12 +3,16 @@
 import * as vscode from 'vscode';
 import simpleGit, { SimpleGit } from 'simple-git';
 
-// Function to escape HTML special characters to prevent XSS in the webview
-function escapeHtml(text: string): string {
-	return text
-		.replace(/&/g, '&amp;')
-		.replace(/</g, '&lt;')
-		.replace(/>/g, '&gt;');
+let outputChannel: vscode.OutputChannel;
+
+export function logInfo(message: string, showOutput: boolean = false) {
+	if (!outputChannel) {
+		outputChannel = vscode.window.createOutputChannel('Git History fast');
+	}
+	outputChannel.appendLine(new Date().toISOString() + ' ' + message);
+	if (showOutput) {
+		outputChannel.show(true);
+	}
 }
 
 // Function to get list of git repositories in the workspace
@@ -60,7 +64,7 @@ export function activate(context: vscode.ExtensionContext) {
 
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
-	console.log('Congratulations, your extension "git-history" is now active!');
+	logInfo('Extension activated.'); // Log activation message
 
 	// Keep track of the current webview panel
 	let currentPanel: vscode.WebviewPanel | undefined = undefined;
@@ -118,13 +122,6 @@ export function activate(context: vscode.ExtensionContext) {
 
 		// Fetch Git logs (this retrieves a list of commits)
 		let git = simpleGit(repoPath);
-		let logData: { all: any[] } = await fetchGitLogs(git);
-
-		// Check if git log retrieval was successful
-		if (!logData || !logData.all) {
-			vscode.window.showErrorMessage(`Failed to retrieve git logs for repository '${repoName}'.`);
-			return;
-		}
 
 		// Get list of all branches of the repository
 		// (Not currently used in the UI, but could be added for branch filtering)
@@ -184,82 +181,89 @@ export function activate(context: vscode.ExtensionContext) {
 				// This command is sent from the webview when it is ready to receive data
 				// Send the initial data to the webview
 				if (currentPanel) {
-					currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex });
-					// Reset logData to free memory, since the webview has received the data
-					logData = { all: [] };
+					try {
+						logInfo(`Initializing webview with repo: ${repoName}, branch: ${currentBranch}`);
+						const commits = (await git.log()).all;
+						logInfo(`Fetched ${commits.length} commits for repo: ${repoName}, branch: ${currentBranch}`);
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: commits, repoList, repoIndex, branches, branchIndex });
+					} catch (error) {
+						vscode.window.showErrorMessage(`Failed to refresh git logs for repository '${repoName}'.`);
+						logInfo(`Error details: ${(error as Error).message}`, true);
+					}
 				}
 			} else if (message.command === 'showFiles') {
 				// Get files changed in the commit
-				try {
-					const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
-					const fileList = files.split('\n').filter(f => f.trim() !== '');
-					if (currentPanel) {
+				if (currentPanel) {
+					try {
+						logInfo(`Fetching files for commit: ${message.commitId} in repo: ${repoName}`);
+						const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
+						const fileList = files.split('\n').filter(f => f.trim() !== '');
+						logInfo(`Fetched ${fileList.length} files for commit: ${message.commitId} in repo: ${repoName}`);
 						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
-					}
-				} catch (error) {
-					if (currentPanel) {
+					} catch (error) {
+						logInfo(`Error fetching files for commit: ${message.commitId} in repo: ${repoName}`, true);
 						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
 					}
 				}
 			} else if (message.command === 'selectRepo') {
-				// User selected a repository, update git and reload log
-				repoIndex = message.repoIndex;
-				repoName = repoList[repoIndex].name;
-				repoPath = repoList[repoIndex].path;
-				git = simpleGit(repoPath);
-				try {
-					const rawLog = await git.log();
-					logData = { all: Array.from(rawLog.all) };
-					const branchInfo = await getGitBranches(git);
-					branches = branchInfo.all;
-					currentBranch = branchInfo.current;
-					branchIndex = branches.indexOf(currentBranch);
-					if (currentPanel) {
+				if (currentPanel) {
+					// User selected a repository, update git and reload log
+					repoIndex = message.repoIndex;
+					repoName = repoList[repoIndex].name;
+					repoPath = repoList[repoIndex].path;
+					git = simpleGit(repoPath);
+					try {
+						logInfo(`Fetching git logs fro repo ${repoName}, branch: ${currentBranch}`);
+						const commits = (await git.log()).all;
+						logInfo(`Fetched ${commits.length} commits for repo: ${repoName}, branch: ${currentBranch}`);
+						const branchInfo = await getGitBranches(git);
+						branches = branchInfo.all;
+						currentBranch = branchInfo.current;
+						branchIndex = branches.indexOf(currentBranch);
+
 						// Print info message
-						vscode.window.showInformationMessage(`Git History: Switching to repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, repoList, repoIndex, branches, branchIndex });
-					}
-				} catch (error) {
-					if (currentPanel) {
+						logInfo(`Switching to repo: ${repoName}`);
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: commits, repoList, repoIndex, branches, branchIndex });
+					} catch (error) {
+						logInfo(`Error details: ${(error as Error).message}`);
 						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Git History: Failed to get repository history.' });
+						logInfo(`Failed to get repository history for repo: ${repoName}`);
+						vscode.window.showErrorMessage(`Git History: Failed to get repository history for repo: ${repoName}`);
+
 					}
-				} finally {
-					logData = { all: [] };
 				}
 			} else if (message.command === 'selectBranch') {
-				// User selected a branch, update git and reload log
-				repoIndex = message.repoIndex;
-				repoName = repoList[repoIndex].name;
-				repoPath = repoList[repoIndex].path;
-				currentBranch = branches[message.branchIndex];
-				git = simpleGit(repoPath);
-				if (message.branchIndex < 0 || message.branchIndex >= branches.length) {
-					vscode.window.showErrorMessage(`Invalid branch selected.`);
-					return;
-				}
-				try {
-					const rawLog = await git.log([currentBranch]);
-					logData = { all: Array.from(rawLog.all) };
-					const lengthOfLog = logData.all.length;
-					if (currentPanel) {
+				if (currentPanel) {
+					// User selected a branch, update git and reload log
+					repoIndex = message.repoIndex;
+					repoName = repoList[repoIndex].name;
+					repoPath = repoList[repoIndex].path;
+					currentBranch = branches[message.branchIndex];
+					git = simpleGit(repoPath);
+					if (message.branchIndex < 0 || message.branchIndex >= branches.length) {
+						vscode.window.showErrorMessage(`Invalid branch selected.`);
+						return;
+					}
+					try {
+						logInfo(`Fetching git logs fro repo ${repoName}, branch: ${currentBranch}`);
+						const commits = (await git.log([currentBranch])).all;
+						logInfo(`Fetched ${commits.length} commits for repo: ${repoName}, branch: ${currentBranch}`);
 						// Print info message
-						vscode.window.showInformationMessage(`Git History: Switching to branch: ${currentBranch} in repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: logData.all, branchIndex: message.branchIndex });
+						logInfo(`Switching to branch: ${currentBranch} in repo: ${repoName}`);
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: commits, branchIndex: message.branchIndex });
+					} catch (error) {
+						logInfo(`Error details: ${(error as Error).message}`, true);
+						logInfo(`Failed to get repository history for branch: ${currentBranch} in repo: ${repoName}`, true);
+						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Git History: Failed to get repository history.' });
+						vscode.window.showErrorMessage(`Git History: Failed to get repository history for branch: ${currentBranch} in repo: ${repoName}`);
 					}
-				} catch (error) {
-					if (currentPanel) {
-						vscode.window.showErrorMessage(`Git History: Failed to get history for branch: ${currentBranch} in repo: ${repoName}`);
-						// Send empty data with error message to webview
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], error: 'Git History: Failed to get repository history for the selected branch.' });
-					}
-				} finally {
-					logData = { all: [] };
 				}
 			} else if (message.command === 'info') {
 				// Show the message
 				if (DEBUG_MODE) {
 					vscode.window.showInformationMessage(message.text);
 				}
+				logInfo(message.text);
 			}
 		});
 
@@ -276,9 +280,8 @@ export function activate(context: vscode.ExtensionContext) {
 /**
  * Returns the HTML content for the webview.
  *
- * @param logData The Git log data to be rendered.
- * @param webview The webview instance (for asWebviewUri)
- * @param extensionUri The extension URI (for asWebviewUri)
+ * @param scriptUri The URI of the script to include in the webview (resolved using asWebviewUri)
+ * @param cssUri The URI of the CSS file to include in the webview (resolved using asWebviewUri)
  */
 export function getWebviewContent(
 	scriptUri: vscode.Uri,

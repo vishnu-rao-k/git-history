@@ -1,3 +1,18 @@
+# 0.1.5 May 2026
+
+## Added
+
+- Added comprehensive logging functionality using VS Code output channel for better debugging and troubleshooting.
+
+## Changed
+
+- Refactored webview content handling to fetch commit data on demand, improving initialization performance and reducing memory usage.
+- Enhanced error handling with detailed logging and user-friendly error messages for git operations.
+
+## Fixed
+
+- Improved reliability of repository and branch switching operations with better error recovery.
+
 # 0.1.4 April 2026
 
 ## Added
