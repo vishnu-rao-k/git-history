@@ -162,7 +162,7 @@ function resetVirtualRender(data) {
     tableHtml = '';
     const graphDiv = document.getElementById('graph');
     if (!data || data.length === 0) {
-        graphDiv.innerHTML = '<em>No commits found.</em>';
+        graphDiv.innerHTML = '<center><b><em>No commits found.</em></b></center>';
         return;
     }
     graphDiv.innerHTML = createTableHeader() + '</tbody></table>';
@@ -185,9 +185,11 @@ function search() {
                 commit.message.toLowerCase().includes(text) ||
                 (commit.body && commit.body.toLowerCase().includes(text));
         });
+        vscode.postMessage({ command: 'info', text: 'Git History: Found ' + filtered.length + ' commits matching "' + text + '"' });
         resetVirtualRender(filtered);
         return;
     }
+    vscode.postMessage({ command: 'info', text: 'Git History: Search cleared, showing all commits.' });
     resetVirtualRender(commits);
 }
 
@@ -222,7 +224,7 @@ window.addEventListener('message', function (event) {
             if (message.error) {
                 filesDiv.innerHTML = '<span style="color:red;">' + message.error + '</span>';
             } else if (message.files.length === 0) {
-                filesDiv.innerHTML = '<em>No files changed.</em>';
+                filesDiv.innerHTML = '<b><em>No files changed.</em></b>';
             } else {
                 filesDiv.innerHTML = '<ul>' + message.files.map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
             }
@@ -231,6 +233,7 @@ window.addEventListener('message', function (event) {
 });
 
 document.addEventListener('DOMContentLoaded', function () {
+    vscode.postMessage({ command: 'info', text: 'Git History: Webview loaded and ready.' });
     const searchBox = document.getElementById('searchBox');
     if (searchBox) {
         searchBox.addEventListener('keydown', function (e) {

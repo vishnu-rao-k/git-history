@@ -118,7 +118,7 @@ table.git-log-table tr:nth-child(even) td {
 }
 
 .file-list {
-    margin: 8px 0 8px 24px;
+    margin: 8px 0 8px 8px;
     color: var(--vscode-descriptionForeground, #888);
 }
 
