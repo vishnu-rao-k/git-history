@@ -1,3 +1,13 @@
+# 0.1.6 May 2026
+
+## Added
+- Added user notifications for successful operations such as fetching commit history and files, enhancing user feedback and experience.
+- Added detailed logging for git operations and webview interactions to assist with debugging and monitoring extension performance.
+
+## Changed
+- Refined error handling to provide more informative messages to users and log detailed error information for developers.
+- Improved the responsiveness of the webview by optimizing data fetching and rendering processes.
+
 # 0.1.5 May 2026
 
 ## Added
