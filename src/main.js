@@ -32,10 +32,6 @@ function escapeHtml(text) {
 
 function populateRepoSelector() {
     const select = document.getElementById('repoSelect');
-    const nameSpan = document.getElementById('repoName');
-    if (!select || !nameSpan) {
-        return;
-    }
     select.options.length = 0;
     repoList.forEach(function (repo, idx) {
         const opt = document.createElement('option');
@@ -44,7 +40,6 @@ function populateRepoSelector() {
         if (idx === repoIndex) { opt.selected = true; }
         select.appendChild(opt);
     });
-    nameSpan.textContent = repoList[repoIndex].name;
     select.onchange = function () {
         vscode.postMessage({ command: 'selectRepo', repoIndex: parseInt(select.value, 10) });
     };
@@ -241,5 +236,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 search();
             }
         });
+    }
+    const searchButton = document.getElementById('searchButton');
+    if (searchButton) {
+        searchButton.addEventListener('click', search);
     }
 });

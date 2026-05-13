@@ -1,3 +1,11 @@
+# 0.1.7 May 2026
+
+## Changed
+- Removed redundant repository name display in the webview panel, streamlining the UI and improving clarity.
+
+## Fixed
+- Resolved onclick search button functionality.
+
 # 0.1.6 May 2026
 
 ## Added

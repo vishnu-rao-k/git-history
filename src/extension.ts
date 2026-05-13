@@ -293,7 +293,6 @@ export function getWebviewContent(
 	<div id="repoSection">
 		<label for="repoSelect">Repository:</label>
 		<select id="repoSelect"></select>
-		<span id="repoName" style="font-weight:bold;"></span>
 	</div>
 	<div id="branchSection">
 		<label for="branchSelect">Branch:</label>
@@ -301,7 +300,7 @@ export function getWebviewContent(
 	</div>
 	<div id="searchSection">
 		<input type="text" id="searchBox" placeholder="Search by author or commit id or comment" />
-		<button onclick="search()">Search</button>
+		<button id="searchButton">Search</button>
 	</div>
 	<div id="graph">
 	<center>
