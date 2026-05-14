@@ -289,12 +289,9 @@ export function getWebviewContent(
 	<link rel="stylesheet" type="text/css" href="${cssUri}">
 </head>
 <body>
-	<h1>Git history</h1>
-	<div id="repoSection">
+	<div id="repoAndBranchSection">
 		<label for="repoSelect">Repository:</label>
 		<select id="repoSelect"></select>
-	</div>
-	<div id="branchSection">
 		<label for="branchSelect">Branch:</label>
 		<select id="branchSelect"></select>
 	</div>
