@@ -11,7 +11,6 @@ let repoIndex;
 let branches;
 /** @type {number} */
 let branchIndex;
-let tableHtml;
 // pagination / virtualization state
 const PAGE_SIZE = 200;
 let renderIndex = 0; // next index to render
@@ -42,6 +41,9 @@ function populateRepoSelector() {
     });
     select.onchange = function () {
         vscode.postMessage({ command: 'selectRepo', repoIndex: parseInt(select.value, 10) });
+        clearBranchSelectors();
+        clearSearchBox();
+        clearGraph();
     };
 }
 
@@ -62,9 +64,31 @@ function populateBranchSelector() {
     });
     select.onchange = function () {
         branchIndex = parseInt(select.value, 10);
-        vscode.postMessage({ command: 'selectBranch', repoIndex: repoIndex, branchIndex });
-        vscode.postMessage({ command: 'info', text: 'Git History: Selected branch index: ' + branchIndex });
+        vscode.postMessage({ command: 'selectBranch', branchIndex: branchIndex });
+        clearSearchBox();
+        clearGraph();
     };
+}
+
+function clearBranchSelectors() {
+    const branchSelect = document.getElementById('branchSelect');
+    if (branchSelect) {
+        branchSelect.options.length = 0;
+    }
+}
+
+function clearSearchBox() {
+    const searchBox = document.getElementById('searchBox');
+    if (searchBox) {
+        searchBox.value = '';
+    }
+}
+
+function clearGraph() {
+    const graphDiv = document.getElementById('graph');
+    if (graphDiv) {
+        graphDiv.innerHTML = '<center><b>Loading git history...</b></center>';
+    }
 }
 
 function formatLocalDate(dateStr) {
@@ -154,7 +178,6 @@ function attachScrollHandler(data) {
 
 function resetVirtualRender(data) {
     renderIndex = 0;
-    tableHtml = '';
     const graphDiv = document.getElementById('graph');
     if (!data || data.length === 0) {
         graphDiv.innerHTML = '<center><b><em>No commits found.</em></b></center>';
@@ -194,25 +217,23 @@ window.showFiles = function (commitId) {
 
 window.addEventListener('message', function (event) {
     const message = event.data;
-    if (message.command === 'updateGraph') {
-        commits = message.data;
+    if (message.command === 'updateRepoAndBranches') {
         if (message.repoList !== undefined && message.repoList.length > 0) {
             repoList = message.repoList;
             repoIndex = message.repoIndex !== undefined ? message.repoIndex : 0;
             populateRepoSelector();
+            message.repoList = null; // free memory
         }
         if (message.branches !== undefined && message.branches.length > 0) {
             branches = message.branches;
             branchIndex = message.branchIndex;
             populateBranchSelector();
+            message.branches = null; // free memory
         }
-        // Clear search box if repo/branch changed to avoid confusion
-        const searchBox = document.getElementById('searchBox');
-        if (searchBox) {
-            searchBox.value = '';
-        }
-        tableHtml = '';
+    } else if (message.command === 'updateCommits') {
+        commits = message.data || [];
         renderGraph(commits);
+        message.data = null; // free memory
     } else if (message.command === 'showFiles') {
         const filesDiv = document.getElementById('files-' + message.commitId);
         if (filesDiv) {
@@ -224,6 +245,7 @@ window.addEventListener('message', function (event) {
                 filesDiv.innerHTML = '<ul>' + message.files.map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
             }
         }
+        message.files = null; // free memory
     }
 });
 

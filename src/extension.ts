@@ -167,30 +167,18 @@ export function activate(context: vscode.ExtensionContext) {
 						currentBranch = branchInfo.current;
 						branchIndex = branches.indexOf(currentBranch);
 						logInfo(`Fetched ${branches.length} branches of repo: ${repoName}. Current branch: ${currentBranch}`);
+						// Update the webview with the repository and branch information
+						currentPanel.webview.postMessage({ command: 'updateRepoAndBranches', repoList, repoIndex, branches, branchIndex });
+						logInfo(`Fetching commits of repo: ${repoName}, branch: ${currentBranch}`);
 						const commits = (await git.log([currentBranch])).all;
 						logInfo(`Fetched ${commits.length} commits for repo: ${repoName}, branch: ${currentBranch}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: commits, repoList, repoIndex, branches, branchIndex });
+						// Update the webview with the commit data 
+						currentPanel.webview.postMessage({ command: 'updateCommits', data: commits });
 						logInfo(`Webview initialized successfully for repo: ${repoName}, branch: ${currentBranch}`);
 						vscode.window.showInformationMessage(`Git history initialized for repo: ${repoName}, branch: ${currentBranch} successfully.`);
 					} catch (error) {
 						vscode.window.showErrorMessage(`Failed to refresh git logs for repository '${repoName}'.`);
 						logInfo(`Error details: ${(error as Error).message}`, true);
-					}
-				}
-			} else if (message.command === 'showFiles') {
-				// Get files changed in the commit
-				if (currentPanel) {
-					try {
-						logInfo(`Fetching files for commit: ${message.commitId} in repo: ${repoName}`);
-						const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
-						const fileList = files.split('\n').filter(f => f.trim() !== '');
-						logInfo(`Fetched ${fileList.length} files for commit: ${message.commitId} in repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
-						logInfo(`Files for commit: ${message.commitId} sent to webview successfully.`);
-						// vscode.window.showInformationMessage(`Files for commit: ${message.commitId} fetched successfully.`);
-					} catch (error) {
-						logInfo(`Error fetching files for commit: ${message.commitId} in repo: ${repoName}`, true);
-						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
 					}
 				}
 			} else if (message.command === 'selectRepo') {
@@ -207,17 +195,17 @@ export function activate(context: vscode.ExtensionContext) {
 						currentBranch = branchInfo.current;
 						branchIndex = branches.indexOf(currentBranch);
 						logInfo(`Fetched ${branches.length} branches of repo: ${repoName}. Current branch: ${currentBranch}`);
+						currentPanel.webview.postMessage({ command: 'updateRepoAndBranches', branches, branchIndex });
 						logInfo(`Fetching commits of repo: ${repoName}, branch: ${currentBranch}`);
 						const commits = (await git.log([currentBranch])).all;
 						logInfo(`Fetched ${commits.length} commits for repo: ${repoName}, branch: ${currentBranch}`);
-						// Print info message
 						logInfo(`Switching to repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: commits, repoList, repoIndex, branches, branchIndex });
+						currentPanel.webview.postMessage({ command: 'updateCommits', data: commits });
 						logInfo(`Switched to repo: ${repoName} successfully.`);
 						vscode.window.showInformationMessage(`Switched to repo: ${repoName} successfully.`);
 					} catch (error) {
 						logInfo(`Error details: ${(error as Error).message}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Git History: Failed to get repository history.' });
+						currentPanel.webview.postMessage({ command: 'updateCommits', data: [], error: 'Git History: Failed to get repository history.' });
 						logInfo(`Failed to get repository history for repo: ${repoName}`);
 						vscode.window.showErrorMessage(`Git History: Failed to get repository history for repo: ${repoName}`);
 
@@ -226,29 +214,40 @@ export function activate(context: vscode.ExtensionContext) {
 			} else if (message.command === 'selectBranch') {
 				if (currentPanel) {
 					// User selected a branch, update git and reload log
-					repoIndex = message.repoIndex;
-					repoName = repoList[repoIndex].name;
-					repoPath = repoList[repoIndex].path;
-					currentBranch = branches[message.branchIndex];
-					git = simpleGit(repoPath);
 					if (message.branchIndex < 0 || message.branchIndex >= branches.length) {
 						vscode.window.showErrorMessage(`Invalid branch selected.`);
 						return;
 					}
+					currentBranch = branches[message.branchIndex];
+					git = simpleGit(repoPath);
 					try {
 						logInfo(`Fetching commits of repo: ${repoName}, branch: ${currentBranch}`);
 						const commits = (await git.log([currentBranch])).all;
 						logInfo(`Fetched ${commits.length} commits for repo: ${repoName}, branch: ${currentBranch}`);
-						// Print info message
 						logInfo(`Switching to branch: ${currentBranch} in repo: ${repoName}`);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: commits, branchIndex: message.branchIndex });
+						currentPanel.webview.postMessage({ command: 'updateCommits', data: commits });
 						logInfo(`Switched to branch: ${currentBranch} in repo: ${repoName} successfully.`);
 						vscode.window.showInformationMessage(`Switched to branch: ${currentBranch} in repo: ${repoName} successfully.`);
 					} catch (error) {
 						logInfo(`Error details: ${(error as Error).message}`, true);
 						logInfo(`Failed to get repository history for branch: ${currentBranch} in repo: ${repoName}`, true);
-						currentPanel.webview.postMessage({ command: 'updateGraph', data: [], repoIndex, error: 'Git History: Failed to get repository history.' });
+						currentPanel.webview.postMessage({ command: 'updateCommits', data: [], error: 'Git History: Failed to get repository history.' });
 						vscode.window.showErrorMessage(`Git History: Failed to get repository history for branch: ${currentBranch} in repo: ${repoName}`);
+					}
+				}
+			} else if (message.command === 'showFiles') {
+				// Get files changed in the commit
+				if (currentPanel) {
+					try {
+						logInfo(`Fetching files for commit: ${message.commitId} in repo: ${repoName}`);
+						const files = await git.show(["--name-only", "--pretty=format:", message.commitId]);
+						const fileList = files.split('\n').filter(f => f.trim() !== '');
+						logInfo(`Fetched ${fileList.length} files for commit: ${message.commitId} in repo: ${repoName}`);
+						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: fileList });
+						logInfo(`Files for commit: ${message.commitId} sent to webview successfully.`);
+					} catch (error) {
+						logInfo(`Error fetching files for commit: ${message.commitId} in repo: ${repoName}`, true);
+						currentPanel.webview.postMessage({ command: 'showFiles', commitId: message.commitId, files: [], error: 'Failed to get files.' });
 					}
 				}
 			} else if (message.command === 'info') {
