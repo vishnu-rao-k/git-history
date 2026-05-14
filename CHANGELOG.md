@@ -1,3 +1,9 @@
+# 0.1.8 May 2026
+
+## Changed
+- Improved memory management in the webview by clearing data objects after use, enhancing performance and reducing memory usage.
+- Updated UI structure for better usage of vertical space.
+
 # 0.1.7 May 2026
 
 ## Changed
