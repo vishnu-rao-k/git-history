@@ -15,8 +15,6 @@ export function logInfo(message: string, showOutput: boolean = false) {
 	}
 }
 
-// Function to get list of git repositories in the workspace
-// (Not currently used, but could be useful for future enhancements)
 async function getGitRepositories(): Promise<string[]> {
 	const workspaceFolders = vscode.workspace.workspaceFolders;
 	if (!workspaceFolders) {
@@ -64,7 +62,6 @@ export function activate(context: vscode.ExtensionContext) {
 	// Now provide the implementation of the command with registerCommand
 	// The commandId parameter must match the command field in package.json
 	const disposable = vscode.commands.registerCommand('git-history.showHistory', async () => {
-		// The code you place here will be executed every time your command is executed
 
 		// Ensure you have an open workspace to infer the repo path.
 		const workspaceFolders = vscode.workspace.workspaceFolders;
@@ -116,8 +113,6 @@ export function activate(context: vscode.ExtensionContext) {
 		// Fetch Git logs (this retrieves a list of commits)
 		let git = simpleGit(repoPath);
 
-		// Get list of all branches of the repository
-		// (Not currently used in the UI, but could be added for branch filtering)
 		let currentBranch: string = '';
 		let branches: string[] = [];
 		let branchIndex: number = -1;

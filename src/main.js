@@ -15,6 +15,8 @@ let branchIndex;
 const PAGE_SIZE = 200;
 let renderIndex = 0; // next index to render
 let isAppending = false;
+let searchResultsFlag = false;
+let searchText = '';
 
 // Initial state from VS Code extension
 vscode.postMessage({ command: 'initialize' });
@@ -56,15 +58,14 @@ function populateBranchSelector() {
     branches.forEach(function (branch, idx) {
         const opt = document.createElement('option');
         opt.value = idx;
-        opt.innerHTML = branch;
+        opt.textContent = branch;
         if (idx === branchIndex) {
             opt.selected = true;
         }
         select.appendChild(opt);
     });
     select.onchange = function () {
-        branchIndex = parseInt(select.value, 10);
-        vscode.postMessage({ command: 'selectBranch', branchIndex: branchIndex });
+        vscode.postMessage({ command: 'selectBranch', branchIndex: parseInt(select.value, 10) });
         clearSearchBox();
         clearGraph();
     };
@@ -189,26 +190,31 @@ function resetVirtualRender(data) {
     attachScrollHandler(data);
 }
 
-const renderGraph = (data) => {
-    // Reset and render first page
-    resetVirtualRender(data);
-};
-
-
 function search() {
     const text = document.getElementById('searchBox').value.trim().toLowerCase();
-    if (text) {
+
+    if (text && text === searchText) {
+        return; // No change in search text, do nothing
+    } else if (text) {
+        searchText = text;
         let filtered = commits.filter(function (commit) {
             return commit.author_name.toLowerCase().includes(text) ||
                 commit.message.toLowerCase().includes(text) ||
-                (commit.body && commit.body.toLowerCase().includes(text));
+                (commit.body && commit.body.toLowerCase().includes(text)) || commit.hash.includes(text);
         });
         vscode.postMessage({ command: 'info', text: 'Git History: Found ' + filtered.length + ' commits matching "' + text + '"' });
         resetVirtualRender(filtered);
+        searchResultsFlag = true;
         return;
     }
-    vscode.postMessage({ command: 'info', text: 'Git History: Search cleared, showing all commits.' });
-    resetVirtualRender(commits);
+
+    if (searchResultsFlag) {
+        vscode.postMessage({ command: 'info', text: 'Git History: Search cleared, showing all commits.' });
+        resetVirtualRender(commits);
+        searchResultsFlag = false;
+        searchText = '';
+        return;
+    }
 }
 
 window.showFiles = function (commitId) {
@@ -228,24 +234,21 @@ window.addEventListener('message', function (event) {
             branches = message.branches;
             branchIndex = message.branchIndex;
             populateBranchSelector();
-            message.branches = null; // free memory
         }
     } else if (message.command === 'updateCommits') {
         commits = message.data || [];
-        renderGraph(commits);
-        message.data = null; // free memory
+        resetVirtualRender(commits);
     } else if (message.command === 'showFiles') {
         const filesDiv = document.getElementById('files-' + message.commitId);
         if (filesDiv) {
             if (message.error) {
-                filesDiv.innerHTML = '<span style="color:red;">' + message.error + '</span>';
+                filesDiv.innerHTML = '<span style="color:red;">' + escapeHtml(message.error) + '</span>';
             } else if (message.files.length === 0) {
                 filesDiv.innerHTML = '<b><em>No files changed.</em></b>';
             } else {
-                filesDiv.innerHTML = '<ul>' + message.files.map(function (f) { return '<li>' + f + '</li>'; }).join('') + '</ul>';
+                filesDiv.innerHTML = '<ul>' + message.files.map(function (f) { return '<li>' + escapeHtml(f) + '</li>'; }).join('') + '</ul>';
             }
         }
-        message.files = null; // free memory
     }
 });
 
