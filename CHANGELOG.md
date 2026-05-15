@@ -1,3 +1,9 @@
+# 0.1.9 May 2026
+
+## Fixed
+- Included commit hash in the search function.
+- Removed redundant code.
+
 # 0.1.8 May 2026
 
 ## Changed
